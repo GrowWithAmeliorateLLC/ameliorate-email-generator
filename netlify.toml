@@ -4,7 +4,8 @@
 
 [functions]
   node_bundler = "esbuild"
-  # Max timeout — allows AI generation + scraping to complete
+
+[functions."generate-email"]
   timeout = 26
 
 [[headers]]

@@ -23,21 +23,20 @@ export default async (req: Request, _context: Context) => {
       );
     }
 
-    // 1. Scrape website — tight 7s timeout so we stay well within function limit
+    // 1. Scrape website — hard 4s limit
     let pageContent = "";
     try {
       const jinaUrl = `https://r.jina.ai/${websiteUrl}`;
       const pageRes = await fetch(jinaUrl, {
-        headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "6" },
-        signal: AbortSignal.timeout(7000),
+        headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "4" },
+        signal: AbortSignal.timeout(4500),
       });
       pageContent = await pageRes.text();
     } catch {
-      // Fallback: plain fetch, 5s max
       try {
         const fallbackRes = await fetch(websiteUrl, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; AmeliorateBot/1.0)" },
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(3000),
         });
         const html = await fallbackRes.text();
         pageContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -46,61 +45,54 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    const contentSnippet = pageContent.substring(0, 4000);
+    const contentSnippet = pageContent.substring(0, 3000);
 
     // 2. Build image slots
     const imageSlots = images && images.length > 0
       ? images.map((url: string, i: number) =>
           url.trim()
             ? `IMAGE_${i + 1}: ${url.trim()}`
-            : `IMAGE_${i + 1}: [PLACEHOLDER — add image URL here]`
+            : `IMAGE_${i + 1}: %%IMAGE_${i + 1}%%`
         ).join("\n")
-      : Array.from({ length: 3 }, (_, i) => `IMAGE_${i + 1}: [PLACEHOLDER — add image URL here]`).join("\n");
+      : [1, 2, 3].map(i => `IMAGE_${i}: %%IMAGE_${i}%%`).join("\n");
 
     // 3. Build messages
     let messages: any[];
 
-    const systemPrompt = `You are an expert HTML email designer for youth enrichment and kids' activity businesses. You create beautiful, on-brand, mobile-responsive HTML emails that parents love to open.
+    const systemPrompt = `You are an expert HTML email designer for youth enrichment businesses. Create a beautiful, on-brand, mobile-responsive HTML email.
 
-BRAND EXTRACTION: When given website content, extract:
-- Primary and secondary colors (hex codes, CSS variables, brand mentions)
-- Logo URL if present
-- Business name, tagline, tone of voice
-- Key offerings and messaging
+BRAND EXTRACTION: From the website content, extract colors, logo URL, business name, and tone.
 
 EMAIL RULES:
-- Mobile-first, max 600px wide, inline CSS only (no <style> tags)
-- Table-based layout for email client compatibility
-- Background colors on BOTH table cell AND element
-- All images: alt text + width/height attributes
+- Max 600px wide, inline CSS only (no <style> tags)
+- Table-based layout for email client compatibility  
+- Background colors on both table cell AND element
+- Images: alt text + width/height
 - Font stack: Arial, Helvetica, sans-serif
-- Use extracted brand colors — never generic blue/gray
+- Use extracted brand colors
 - Warm, parent-friendly tone
-- Structure: header/logo → hero image → headline → body → CTA button → footer
-- CTA must be a table-based button, NOT just an <a> tag
+- Structure: logo header → hero image → headline → body → CTA button → footer
+- CTA = large table-based button
 
-PLACEHOLDERS:
-- CTA href: %%EVENT_LINK%%
-- Missing images: %%IMAGE_1%%, %%IMAGE_2%% etc.
-- Unsubscribe: %%UNSUBSCRIBE_LINK%%
+PLACEHOLDERS: CTA href=%%EVENT_LINK%%, missing images=%%IMAGE_1%% etc, unsubscribe=%%UNSUBSCRIBE_LINK%%
 
-OUTPUT: Complete HTML only. Start with <!DOCTYPE html>, end with </html>. No explanation, no markdown.`;
+OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markdown.`;
 
-    if (revisionRequest && previousEmail && conversationHistory) {
+    if (revisionRequest && conversationHistory) {
       messages = [
         ...conversationHistory,
-        { role: "user", content: `Revise the email with these changes: ${revisionRequest}\n\nReturn ONLY the complete updated HTML email.` },
+        { role: "user", content: `Revise the email: ${revisionRequest}\n\nReturn ONLY the complete updated HTML.` },
       ];
     } else {
       messages = [
         {
           role: "user",
-          content: `${systemPrompt}\n\n---\n\nGenerate a professional HTML email.\n\nWEBSITE URL: ${websiteUrl}\nEMAIL PURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT (use for brand extraction):\n${contentSnippet || "Could not scrape — use clean professional styling with warm greens/yellows"}\n\nIMAGE SLOTS:\n${imageSlots}\n\nCTA href: %%EVENT_LINK%%\n\nReturn ONLY the complete HTML.`,
+          content: `${systemPrompt}\n\n---\n\nURL: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT:\n${contentSnippet || "No content scraped — use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA href: %%EVENT_LINK%%\n\nReturn ONLY the complete HTML.`,
         },
       ];
     }
 
-    // 4. Call Claude
+    // 4. Call Claude Haiku — fastest model, stays within timeout
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -109,7 +101,7 @@ OUTPUT: Complete HTML only. Start with <!DOCTYPE html>, end with </html>. No exp
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 3000,
         messages,
       }),
