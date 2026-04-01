@@ -4,8 +4,8 @@
 
 [functions]
   node_bundler = "esbuild"
-  # Allow up to 30s for AI generation + website scraping
-  timeout = 30
+  # Max timeout — allows AI generation + scraping to complete
+  timeout = 26
 
 [[headers]]
   for = "/*"

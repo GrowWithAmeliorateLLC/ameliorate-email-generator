@@ -16,28 +16,28 @@ export default async (req: Request, _context: Context) => {
     }
 
     const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
-
     if (!anthropicKey) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured. Please add it in Netlify → Site configuration → Environment variables." }),
+        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured in Netlify environment variables." }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 1. Scrape website for brand kit
+    // 1. Scrape website — tight 7s timeout so we stay well within function limit
     let pageContent = "";
     try {
       const jinaUrl = `https://r.jina.ai/${websiteUrl}`;
       const pageRes = await fetch(jinaUrl, {
-        headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "15" },
-        signal: AbortSignal.timeout(20000),
+        headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "6" },
+        signal: AbortSignal.timeout(7000),
       });
       pageContent = await pageRes.text();
     } catch {
+      // Fallback: plain fetch, 5s max
       try {
         const fallbackRes = await fetch(websiteUrl, {
           headers: { "User-Agent": "Mozilla/5.0 (compatible; AmeliorateBot/1.0)" },
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(5000),
         });
         const html = await fallbackRes.text();
         pageContent = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -46,7 +46,7 @@ export default async (req: Request, _context: Context) => {
       }
     }
 
-    const contentSnippet = pageContent.substring(0, 6000);
+    const contentSnippet = pageContent.substring(0, 4000);
 
     // 2. Build image slots
     const imageSlots = images && images.length > 0
@@ -63,44 +63,44 @@ export default async (req: Request, _context: Context) => {
     const systemPrompt = `You are an expert HTML email designer for youth enrichment and kids' activity businesses. You create beautiful, on-brand, mobile-responsive HTML emails that parents love to open.
 
 BRAND EXTRACTION: When given website content, extract:
-- Primary and secondary colors (look for hex codes, CSS variables, brand mentions)
-- Logo URL if present in the content
+- Primary and secondary colors (hex codes, CSS variables, brand mentions)
+- Logo URL if present
 - Business name, tagline, tone of voice
 - Key offerings and messaging
 
 EMAIL RULES:
-- Mobile-first, max 600px wide, inline CSS only (no <style> tags — email clients strip them)
-- Use table-based layout for maximum email client compatibility
-- Background colors set on BOTH the table cell AND the element itself
-- All images must have alt text and width/height attributes
-- Font stack: Arial, Helvetica, sans-serif (web-safe only)
-- Use the brand's actual extracted colors — never generic blue/gray
+- Mobile-first, max 600px wide, inline CSS only (no <style> tags)
+- Table-based layout for email client compatibility
+- Background colors on BOTH table cell AND element
+- All images: alt text + width/height attributes
+- Font stack: Arial, Helvetica, sans-serif
+- Use extracted brand colors — never generic blue/gray
 - Warm, parent-friendly tone
-- Clear visual hierarchy: header with logo → hero image → headline → body copy → CTA button → footer
-- CTA button must be a large, tappable table-based button (not just an <a> tag)
+- Structure: header/logo → hero image → headline → body → CTA button → footer
+- CTA must be a table-based button, NOT just an <a> tag
 
-PLACEHOLDER RULES:
-- Main CTA link href: use exactly %%EVENT_LINK%%
-- Any image without a URL: use %%IMAGE_1%%, %%IMAGE_2%% etc.
-- Footer unsubscribe: use %%UNSUBSCRIBE_LINK%%
+PLACEHOLDERS:
+- CTA href: %%EVENT_LINK%%
+- Missing images: %%IMAGE_1%%, %%IMAGE_2%% etc.
+- Unsubscribe: %%UNSUBSCRIBE_LINK%%
 
-OUTPUT: Return ONLY the complete HTML email. Start with <!DOCTYPE html> and end with </html>. No explanation, no markdown fences.`;
+OUTPUT: Complete HTML only. Start with <!DOCTYPE html>, end with </html>. No explanation, no markdown.`;
 
     if (revisionRequest && previousEmail && conversationHistory) {
       messages = [
         ...conversationHistory,
-        { role: "user", content: `Please revise the email with these changes: ${revisionRequest}\n\nReturn ONLY the complete updated HTML email with no explanation.` },
+        { role: "user", content: `Revise the email with these changes: ${revisionRequest}\n\nReturn ONLY the complete updated HTML email.` },
       ];
     } else {
       messages = [
         {
           role: "user",
-          content: `${systemPrompt}\n\n---\n\nGenerate a professional HTML email for this business.\n\nWEBSITE URL: ${websiteUrl}\nEMAIL TYPE / PURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT (extract brand colors, logo, tone from this):\n${contentSnippet || "Could not scrape — use professional generic styling"}\n\nIMAGE SLOTS:\n${imageSlots}\n\nCTA LINK: Use %%EVENT_LINK%% as the href for the main button.\n\nRequirements:\n- Extract and use the actual brand colors from the website content\n- Include logo if URL found in content\n- Mobile-responsive table-based layout\n- Compelling copy matching the email purpose\n- Large tappable CTA button linking to %%EVENT_LINK%%\n- Simple footer with %%UNSUBSCRIBE_LINK%%\n\nReturn ONLY the complete HTML. No explanation.`,
+          content: `${systemPrompt}\n\n---\n\nGenerate a professional HTML email.\n\nWEBSITE URL: ${websiteUrl}\nEMAIL PURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT (use for brand extraction):\n${contentSnippet || "Could not scrape — use clean professional styling with warm greens/yellows"}\n\nIMAGE SLOTS:\n${imageSlots}\n\nCTA href: %%EVENT_LINK%%\n\nReturn ONLY the complete HTML.`,
         },
       ];
     }
 
-    // 4. Call Claude — using claude-sonnet-4-6
+    // 4. Call Claude
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -110,16 +110,14 @@ OUTPUT: Return ONLY the complete HTML email. Start with <!DOCTYPE html> and end 
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 4096,
+        max_tokens: 3000,
         messages,
       }),
     });
 
     if (!claudeRes.ok) {
       const errData = await claudeRes.json().catch(() => null);
-      const errText = errData
-        ? JSON.stringify(errData)
-        : await claudeRes.text().catch(() => `HTTP ${claudeRes.status}`);
+      const errText = errData ? JSON.stringify(errData) : `HTTP ${claudeRes.status}`;
       return new Response(
         JSON.stringify({ error: `AI generation failed (${claudeRes.status}): ${errText}` }),
         { status: 500, headers: { "Content-Type": "application/json" } }
@@ -130,11 +128,10 @@ OUTPUT: Return ONLY the complete HTML email. Start with <!DOCTYPE html> and end 
     let emailHtml: string = claudeData.content[0].text;
     emailHtml = emailHtml.replace(/^```html\n?/i, "").replace(/\n?```$/i, "").trim();
 
-    // Build updated conversation history
     const updatedHistory = revisionRequest
       ? [
           ...conversationHistory,
-          { role: "user", content: `Please revise the email with these changes: ${revisionRequest}\n\nReturn ONLY the complete updated HTML email with no explanation.` },
+          { role: "user", content: `Revise the email: ${revisionRequest}` },
           { role: "assistant", content: emailHtml },
         ]
       : [
