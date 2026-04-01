@@ -6,7 +6,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const { websiteUrl, images, emailType, revisionRequest, previousEmail, conversationHistory } = await req.json();
+    const { websiteUrl, images, emailType, revisionRequest, conversationHistory } = await req.json();
 
     if (!websiteUrl) {
       return new Response(
@@ -47,7 +47,7 @@ export default async (req: Request, _context: Context) => {
 
     const contentSnippet = pageContent.substring(0, 3000);
 
-    // 2. Build image slots
+    // 2. Build image slots — real URLs used directly, missing ones get placeholders
     const imageSlots = images && images.length > 0
       ? images.map((url: string, i: number) =>
           url.trim()
@@ -65,16 +65,19 @@ BRAND EXTRACTION: From the website content, extract colors, logo URL, business n
 
 EMAIL RULES:
 - Max 600px wide, inline CSS only (no <style> tags)
-- Table-based layout for email client compatibility  
+- Table-based layout for email client compatibility
 - Background colors on both table cell AND element
 - Images: alt text + width/height
 - Font stack: Arial, Helvetica, sans-serif
 - Use extracted brand colors
 - Warm, parent-friendly tone
-- Structure: logo header → hero image → headline → body → CTA button → footer
+- Structure: logo header \u2192 hero image \u2192 headline \u2192 body \u2192 CTA button \u2192 simple footer
 - CTA = large table-based button
+- Footer: simple copyright/contact line only — NO unsubscribe link (handled by email provider)
 
-PLACEHOLDERS: CTA href=%%EVENT_LINK%%, missing images=%%IMAGE_1%% etc, unsubscribe=%%UNSUBSCRIBE_LINK%%
+PLACEHOLDERS:
+- Missing images: %%IMAGE_1%%, %%IMAGE_2%% etc.
+- Do NOT add any unsubscribe placeholder
 
 OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markdown.`;
 
@@ -87,12 +90,12 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markd
       messages = [
         {
           role: "user",
-          content: `${systemPrompt}\n\n---\n\nURL: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT:\n${contentSnippet || "No content scraped — use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA href: %%EVENT_LINK%%\n\nReturn ONLY the complete HTML.`,
+          content: `${systemPrompt}\n\n---\n\nURL: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT:\n${contentSnippet || "No content scraped \u2014 use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA BUTTON href: ${websiteUrl}\n(Use the exact URL above as the CTA button link \u2014 do NOT use a placeholder for this)\n\nReturn ONLY the complete HTML.`,
         },
       ];
     }
 
-    // 4. Call Claude Haiku — fastest model, stays within timeout
+    // 4. Call Claude Haiku
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {

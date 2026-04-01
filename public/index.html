@@ -7,11 +7,7 @@
   <link rel="icon" href="https://storage.googleapis.com/msgsndr/duyQkjFepxRU10hrDn9s/media/68cdaf6b5f00dc30ea724bde.svg" type="image/svg+xml" />
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <style>
-    :root {
-      --lime:#c9e265;--seafoam:#b8dfbe;--lavender:#f4edf7;--ink:#0a0a0a;
-      --muted:#666672;--pink:#e8b4f0;--purple:#7c4dff;--white:#ffffff;
-      --border:#e2daea;--success:#22c55e;--error:#ef4444;
-    }
+    :root{--lime:#c9e265;--seafoam:#b8dfbe;--lavender:#f4edf7;--ink:#0a0a0a;--muted:#666672;--pink:#e8b4f0;--purple:#7c4dff;--white:#ffffff;--border:#e2daea;--success:#22c55e;--error:#ef4444;}
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'DM Sans',sans-serif;background:var(--lavender);background-image:radial-gradient(ellipse 70% 60% at 10% 0%,rgba(201,226,101,.22) 0%,transparent 60%),radial-gradient(ellipse 60% 50% at 95% 100%,rgba(184,223,190,.25) 0%,transparent 55%),radial-gradient(ellipse 40% 40% at 55% 50%,rgba(232,180,240,.12) 0%,transparent 60%);min-height:100vh;color:var(--ink);}
     header{display:flex;align-items:center;justify-content:space-between;padding:18px 40px;background:rgba(255,255,255,.65);backdrop-filter:blur(10px);border-bottom:1.5px solid var(--border);position:sticky;top:0;z-index:100;}
@@ -22,51 +18,65 @@
     .badge{background:var(--ink);color:var(--lime);font-family:'Montserrat',sans-serif;font-weight:800;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:50px;display:flex;align-items:center;gap:5px;}
     .badge::before{content:'';width:6px;height:6px;background:var(--lime);border-radius:50%;animation:blink 1.5s ease-in-out infinite;}
     @keyframes blink{0%,100%{opacity:1;}50%{opacity:.3;}}
-    main{max-width:1140px;margin:0 auto;padding:48px 24px 80px;}
-    .hero{text-align:center;margin-bottom:40px;}
-    .hero h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(26px,4.5vw,42px);line-height:1.1;margin-bottom:12px;}
+    main{max-width:1400px;margin:0 auto;padding:40px 24px 80px;}
+    .hero{text-align:center;margin-bottom:36px;}
+    .hero h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(24px,4vw,40px);line-height:1.1;margin-bottom:10px;}
     .gradient-text{background:linear-gradient(110deg,#8cc63f 0%,var(--seafoam) 50%,var(--purple) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-    .hero p{font-size:16px;color:var(--muted);max-width:540px;margin:0 auto;line-height:1.6;}
-    .workspace{display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;}
-    .card{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:28px;box-shadow:0 2px 20px rgba(10,10,10,.06);}
-    .form-grid{display:flex;flex-direction:column;gap:18px;}
+    .hero p{font-size:15px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.6;}
+    .workspace{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+    .card{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:24px;box-shadow:0 2px 20px rgba(10,10,10,.06);}
+    .form-grid{display:flex;flex-direction:column;gap:16px;}
     .field{display:flex;flex-direction:column;gap:6px;}
     label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);}
     .field-hint{font-size:11px;color:var(--muted);margin-top:-2px;}
-    input[type=text],input[type=url],textarea,select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
-    input:focus,textarea:focus,select:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
-    textarea{resize:vertical;min-height:70px;line-height:1.5;}
-    .images-section{display:flex;flex-direction:column;gap:8px;}
-    .image-row{display:flex;align-items:center;gap:8px;}
-    .img-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;color:var(--muted);white-space:nowrap;width:52px;flex-shrink:0;}
+    input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
+    input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
+    textarea{resize:vertical;min-height:66px;line-height:1.5;}
+    .images-section{display:flex;flex-direction:column;gap:7px;}
+    .image-row{display:flex;align-items:center;gap:7px;}
+    .img-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;color:var(--muted);white-space:nowrap;width:48px;flex-shrink:0;}
     .image-row input{flex:1;}
-    .add-image-btn,.remove-image-btn{width:28px;height:28px;border-radius:8px;border:1.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .15s;flex-shrink:0;line-height:1;}
+    .add-image-btn,.remove-image-btn{width:27px;height:27px;border-radius:7px;border:1.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .15s;flex-shrink:0;line-height:1;}
     .add-image-btn:hover{border-color:var(--lime);color:var(--ink);background:rgba(201,226,101,.1);}
     .remove-image-btn:hover{border-color:var(--error);color:var(--error);background:rgba(239,68,68,.08);}
-    .btn-primary{width:100%;padding:14px;background:linear-gradient(135deg,var(--lime),var(--seafoam));border:none;border-radius:11px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;box-shadow:0 2px 12px rgba(201,226,101,.35);display:flex;align-items:center;justify-content:center;gap:8px;}
+    .btn-primary{width:100%;padding:13px;background:linear-gradient(135deg,var(--lime),var(--seafoam));border:none;border-radius:11px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink);cursor:pointer;transition:transform .15s,box-shadow .15s,opacity .15s;box-shadow:0 2px 12px rgba(201,226,101,.35);display:flex;align-items:center;justify-content:center;gap:8px;}
     .btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(201,226,101,.45);}
     .btn-primary:disabled{opacity:.55;cursor:not-allowed;}
-    .error-box{background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.25);border-radius:10px;padding:12px 14px;color:#c0392b;font-size:13px;display:none;}
+    .error-box{background:rgba(239,68,68,.08);border:1.5px solid rgba(239,68,68,.25);border-radius:10px;padding:11px 13px;color:#c0392b;font-size:13px;display:none;}
     #loading{display:none;text-align:center;padding:60px 24px;}
     .loading-ring{width:52px;height:52px;border:3px solid var(--border);border-top-color:var(--lime);border-right-color:var(--seafoam);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;}
     @keyframes spin{to{transform:rotate(360deg);}}
     .loading-text{font-family:'Montserrat',sans-serif;font-weight:700;font-size:15px;margin-bottom:6px;}
     .loading-sub{font-size:13px;color:var(--muted);}
-    .output-panel{display:flex;flex-direction:column;gap:16px;}
+    .output-panel{display:flex;flex-direction:column;gap:14px;}
     .output-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
     .output-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:16px;}
-    .toolbar-actions{display:flex;gap:8px;flex-wrap:wrap;}
-    .btn-tool{display:flex;align-items:center;gap:6px;padding:8px 14px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink);cursor:pointer;transition:all .15s;white-space:nowrap;}
+    .toolbar-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+    .btn-tool{display:flex;align-items:center;gap:6px;padding:7px 13px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink);cursor:pointer;transition:all .15s;white-space:nowrap;}
     .btn-tool:hover{border-color:var(--lime);background:rgba(201,226,101,.1);}
     .btn-tool.copied{border-color:var(--success);background:rgba(34,197,94,.1);color:var(--success);}
     .tab-bar{display:flex;gap:4px;background:#f0ecf5;border-radius:10px;padding:4px;}
-    .tab-btn{flex:1;padding:7px 14px;border:none;border-radius:7px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;}
+    .tab-btn{flex:1;padding:6px 13px;border:none;border-radius:7px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;}
     .tab-btn.active{background:var(--white);color:var(--ink);box-shadow:0 1px 6px rgba(10,10,10,.08);}
+    /* Expand button */
+    .btn-expand{display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
+    .btn-expand:hover{border-color:var(--purple);color:var(--purple);background:rgba(124,77,255,.06);}
+    /* Preview */
     .preview-wrap{border:1.5px solid var(--border);border-radius:14px;overflow:hidden;background:#f8f8f8;}
-    .preview-bar{background:#f0ecf5;padding:10px 16px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+    .preview-bar{background:#f0ecf5;padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
     .preview-dot{width:10px;height:10px;border-radius:50%;}
-    .preview-bar .url-mock{flex:1;background:var(--white);border-radius:6px;padding:5px 12px;font-size:11px;color:var(--muted);border:1px solid var(--border);margin:0 8px;}
-    iframe#preview-frame{width:100%;height:640px;border:none;background:var(--white);}
+    .preview-bar .url-mock{flex:1;background:var(--white);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--muted);border:1px solid var(--border);margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    iframe#preview-frame{width:100%;height:800px;border:none;background:var(--white);display:block;}
+    /* Fullscreen overlay */
+    .preview-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,10,10,.6);backdrop-filter:blur(4px);}
+    .preview-overlay.open{display:flex;align-items:center;justify-content:center;}
+    .overlay-inner{background:var(--white);border-radius:16px;overflow:hidden;width:680px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(10,10,10,.3);}
+    .overlay-bar{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:#f0ecf5;border-bottom:1px solid var(--border);}
+    .overlay-bar span{font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+    .overlay-close{width:28px;height:28px;border:none;background:transparent;cursor:pointer;font-size:18px;color:var(--muted);border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+    .overlay-close:hover{background:rgba(239,68,68,.1);color:var(--error);}
+    iframe#preview-large{width:100%;flex:1;border:none;min-height:500px;}
+    /* Code */
     .code-wrap{border:1.5px solid var(--border);border-radius:14px;overflow:hidden;display:none;}
     .code-wrap.visible{display:block;}
     .code-header{background:var(--ink);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
@@ -74,23 +84,25 @@
     .code-copy-btn{padding:5px 12px;background:rgba(201,226,101,.15);border:1px solid rgba(201,226,101,.3);border-radius:6px;color:var(--lime);font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;cursor:pointer;transition:all .15s;}
     .code-copy-btn:hover{background:rgba(201,226,101,.3);}
     .code-copy-btn.copied{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.4);color:#22c55e;}
-    pre#code-view{margin:0;padding:20px;overflow-x:auto;font-family:'Monaco','Menlo',monospace;font-size:12px;line-height:1.6;color:#e8e8e8;background:#1a1a2e;max-height:600px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
-    .revision-panel{background:var(--white);border:1.5px solid var(--border);border-radius:16px;padding:20px;}
-    .revision-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
-    .revision-title .dot{width:8px;height:8px;background:var(--lime);border-radius:50%;animation:blink 1.5s infinite;flex-shrink:0;}
-    .revision-row{display:flex;gap:10px;}
-    .revision-row textarea{flex:1;min-height:56px;}
-    .btn-revise{padding:11px 18px;background:var(--ink);border:none;border-radius:10px;color:var(--lime);font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;transition:opacity .15s;white-space:nowrap;align-self:flex-end;display:flex;align-items:center;gap:6px;}
-    .btn-revise:hover{opacity:.85;}
-    .btn-revise:disabled{opacity:.5;cursor:not-allowed;}
-    .placeholders-note{background:rgba(124,77,255,.06);border:1.5px solid rgba(124,77,255,.15);border-radius:10px;padding:12px 16px;font-size:12px;color:var(--purple);display:none;line-height:1.6;}
+    pre#code-view{margin:0;padding:20px;overflow-x:auto;font-family:'Monaco','Menlo',monospace;font-size:12px;line-height:1.6;color:#e8e8e8;background:#1a1a2e;max-height:760px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
+    /* Placeholders note */
+    .placeholders-note{background:rgba(124,77,255,.06);border:1.5px solid rgba(124,77,255,.15);border-radius:10px;padding:11px 15px;font-size:12px;color:var(--purple);display:none;line-height:1.6;}
     .placeholders-note.visible{display:block;}
     .placeholders-note strong{font-weight:700;}
     .placeholders-note code{background:rgba(124,77,255,.1);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:11px;}
+    /* Revision */
+    .revision-panel{background:var(--white);border:1.5px solid var(--border);border-radius:16px;padding:18px;}
+    .revision-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+    .revision-title .dot{width:8px;height:8px;background:var(--lime);border-radius:50%;animation:blink 1.5s infinite;flex-shrink:0;}
+    .revision-row{display:flex;gap:10px;}
+    .revision-row textarea{flex:1;min-height:52px;}
+    .btn-revise{padding:10px 16px;background:var(--ink);border:none;border-radius:10px;color:var(--lime);font-family:'Montserrat',sans-serif;font-weight:800;font-size:12px;text-transform:uppercase;letter-spacing:.04em;cursor:pointer;transition:opacity .15s;white-space:nowrap;align-self:flex-end;display:flex;align-items:center;gap:6px;}
+    .btn-revise:hover{opacity:.85;}
+    .btn-revise:disabled{opacity:.5;cursor:not-allowed;}
     .toast{position:fixed;bottom:28px;right:28px;background:var(--ink);color:var(--lime);font-family:'Montserrat',sans-serif;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;padding:12px 20px;border-radius:50px;box-shadow:0 4px 20px rgba(10,10,10,.2);transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.175,.885,.32,1.275);z-index:999;pointer-events:none;}
     .toast.show{transform:translateY(0);opacity:1;}
-    .section-label{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-bottom:8px;border-bottom:1px solid var(--border);}
-    @media(max-width:860px){.workspace{grid-template-columns:1fr;}header{padding:14px 20px;}main{padding:28px 16px 60px;}}
+    .section-label{font-family:'Montserrat',sans-serif;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding-bottom:7px;border-bottom:1px solid var(--border);}
+    @media(max-width:900px){.workspace{grid-template-columns:1fr;}header{padding:14px 20px;}main{padding:24px 16px 60px;}}
   </style>
 </head>
 <body>
@@ -103,6 +115,17 @@
   <div class="badge">AI Powered</div>
 </header>
 
+<!-- Fullscreen preview overlay -->
+<div class="preview-overlay" id="preview-overlay" onclick="closeOverlay(event)">
+  <div class="overlay-inner">
+    <div class="overlay-bar">
+      <span>📧 Full Preview</span>
+      <button class="overlay-close" onclick="toggleOverlay(false)">×</button>
+    </div>
+    <iframe id="preview-large" title="Full Email Preview" sandbox="allow-same-origin"></iframe>
+  </div>
+</div>
+
 <main>
   <div class="hero">
     <h1>Build <span class="gradient-text">On-Brand Emails</span><br />in seconds.</h1>
@@ -112,18 +135,18 @@
   <div id="loading">
     <div class="loading-ring"></div>
     <p class="loading-text" id="loading-text">Reading brand kit…</p>
-    <p class="loading-sub">This takes about 15–25 seconds</p>
+    <p class="loading-sub">This takes about 10–20 seconds</p>
   </div>
 
   <div class="workspace" id="workspace">
-    <!-- LEFT: Input -->
+    <!-- LEFT -->
     <div id="input-panel">
       <div class="card">
         <div class="form-grid">
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">AI extracts colors, logo &amp; tone from this page</span>
+            <span class="field-hint">AI extracts colors, logo &amp; tone — also used as your CTA link</span>
             <input type="url" id="website-url" placeholder="https://client-website.com" autocomplete="off" />
           </div>
 
@@ -131,17 +154,17 @@
           <div class="field">
             <label for="email-type">Email Type / Purpose</label>
             <span class="field-hint">Describe what this email is for</span>
-            <textarea id="email-type" placeholder="e.g. Summer camp enrollment announcement, Birthday party booking promo, Back-to-school event invite…" rows="3"></textarea>
+            <textarea id="email-type" placeholder="e.g. Summer camp enrollment, Birthday party promo, Back-to-school event invite…" rows="3"></textarea>
           </div>
 
           <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5)</span></div>
           <div class="field">
-            <span class="field-hint">Paste Google Cloud Console hosted image URLs. Leave blank for placeholders.</span>
+            <span class="field-hint">Paste Google Cloud Console image URLs. Leave blank for placeholders.</span>
             <div class="images-section" id="images-section">
               <div class="image-row">
                 <span class="img-label">IMG 1</span>
                 <input type="url" class="img-input" placeholder="https://storage.googleapis.com/…" />
-                <button class="add-image-btn" id="add-img-btn" title="Add image slot">+</button>
+                <button class="add-image-btn" id="add-img-btn" title="Add image">+</button>
               </div>
             </div>
           </div>
@@ -156,14 +179,11 @@
       </div>
     </div>
 
-    <!-- RIGHT: Output -->
+    <!-- RIGHT -->
     <div class="output-panel" id="output-panel" style="display:none;">
 
       <div class="placeholders-note" id="placeholders-note">
-        <strong>Placeholders to replace before sending:</strong><br />
-        <code>%%EVENT_LINK%%</code> → your event or booking page URL &nbsp;·&nbsp;
-        <code>%%IMAGE_1%%</code> etc. → actual image URLs &nbsp;·&nbsp;
-        <code>%%UNSUBSCRIBE_LINK%%</code> → your unsubscribe URL
+        <strong>Heads up:</strong> Replace <code>%%IMAGE_1%%</code> etc. with actual image URLs before sending.
       </div>
 
       <div class="output-toolbar">
@@ -173,6 +193,10 @@
             <button class="tab-btn active" id="tab-preview" onclick="switchTab('preview')">Preview</button>
             <button class="tab-btn" id="tab-code" onclick="switchTab('code')">HTML Code</button>
           </div>
+          <button class="btn-expand" id="expand-btn" onclick="toggleOverlay(true)">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            Expand
+          </button>
           <button class="btn-tool" id="copy-html-btn" onclick="copyHtml('toolbar')">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
             Copy HTML
@@ -186,7 +210,7 @@
           <div class="preview-dot" style="background:#ff5f57"></div>
           <div class="preview-dot" style="background:#febc2e"></div>
           <div class="preview-dot" style="background:#28c840"></div>
-          <div class="url-mock">📧 Email Preview</div>
+          <div class="url-mock" id="preview-url-mock">📧 Email Preview</div>
         </div>
         <iframe id="preview-frame" title="Email Preview" sandbox="allow-same-origin"></iframe>
       </div>
@@ -199,19 +223,16 @@
         <pre id="code-view"></pre>
       </div>
 
-      <div class="revision-panel" id="revision-panel">
-        <div class="revision-title">
-          <span class="dot"></span>
-          Want to change anything?
-        </div>
+      <div class="revision-panel">
+        <div class="revision-title"><span class="dot"></span>Want to change anything?</div>
         <div class="revision-row">
-          <textarea id="revision-input" placeholder="e.g. Make the CTA button darker green, swap the hero image to IMG_2, change the headline to 'Summer is here!', make the tone more urgent, add a second section for pricing…"></textarea>
+          <textarea id="revision-input" placeholder="e.g. Make the CTA button orange, change the headline to 'Summer is here!', add a second image section, make tone more urgent…"></textarea>
           <button class="btn-revise" id="revise-btn" onclick="submitRevision()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             Revise
           </button>
         </div>
-        <p style="font-size:11px;color:var(--muted);margin-top:8px;">Tip: Press ⌘+Enter / Ctrl+Enter to revise quickly. Claude remembers the full conversation.</p>
+        <p style="font-size:11px;color:var(--muted);margin-top:8px;">⌘+Enter / Ctrl+Enter to revise quickly.</p>
       </div>
 
     </div>
@@ -224,8 +245,8 @@
   let currentEmailHtml = '', conversationHistory = [], imageCount = 1;
   const MAX_IMAGES = 5;
 
-  const websiteUrl   = document.getElementById('website-url');
-  const emailType    = document.getElementById('email-type');
+  const websiteUrlEl = document.getElementById('website-url');
+  const emailTypeEl  = document.getElementById('email-type');
   const generateBtn  = document.getElementById('generate-btn');
   const formError    = document.getElementById('form-error');
   const loading      = document.getElementById('loading');
@@ -234,6 +255,7 @@
   const inputPanel   = document.getElementById('input-panel');
   const outputPanel  = document.getElementById('output-panel');
   const previewFrame = document.getElementById('preview-frame');
+  const previewLarge = document.getElementById('preview-large');
   const codeView     = document.getElementById('code-view');
   const revisionInput = document.getElementById('revision-input');
   const reviseBtn    = document.getElementById('revise-btn');
@@ -245,11 +267,7 @@
     imageCount++;
     const row = document.createElement('div');
     row.className = 'image-row';
-    row.innerHTML = `
-      <span class="img-label">IMG ${imageCount}</span>
-      <input type="url" class="img-input" placeholder="https://storage.googleapis.com/…" />
-      <button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">×</button>
-    `;
+    row.innerHTML = `<span class="img-label">IMG ${imageCount}</span><input type="url" class="img-input" placeholder="https://storage.googleapis.com/…" /><button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">×</button>`;
     imagesSection.appendChild(row);
     if (imageCount >= MAX_IMAGES) addImgBtn.style.display = 'none';
   });
@@ -258,9 +276,7 @@
     btn.closest('.image-row').remove();
     imageCount--;
     addImgBtn.style.display = '';
-    imagesSection.querySelectorAll('.image-row').forEach((row, i) => {
-      row.querySelector('.img-label').textContent = `IMG ${i + 1}`;
-    });
+    imagesSection.querySelectorAll('.image-row').forEach((row, i) => row.querySelector('.img-label').textContent = `IMG ${i + 1}`);
   }
 
   function getImages() {
@@ -268,26 +284,25 @@
   }
 
   generateBtn.addEventListener('click', async () => {
-    const url = websiteUrl.value.trim();
+    const url = websiteUrlEl.value.trim();
     if (!url.startsWith('http')) { showError('Please enter a valid website URL starting with http.'); return; }
     hideError();
     conversationHistory = [];
     setLoading(true, 'Reading brand kit…');
     setTimeout(() => setLoadingText('Extracting colors & logo…'), 5000);
-    setTimeout(() => setLoadingText('Writing your email…'), 11000);
-    setTimeout(() => setLoadingText('Almost there…'), 18000);
+    setTimeout(() => setLoadingText('Writing your email…'), 10000);
     try {
       const res = await fetch('/api/generate-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl: url, images: getImages(), emailType: emailType.value.trim() || 'general promotional email' }),
+        body: JSON.stringify({ websiteUrl: url, images: getImages(), emailType: emailTypeEl.value.trim() || 'general promotional email' }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { setLoading(false); showError(data.error || 'Generation failed. Please try again.'); return; }
       currentEmailHtml = data.emailHtml;
       conversationHistory = data.conversationHistory || [];
       setLoading(false);
-      renderEmail();
+      renderEmail(url);
     } catch { setLoading(false); showError('Network error. Please try again.'); }
   });
 
@@ -300,14 +315,14 @@
       const res = await fetch('/api/generate-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl: websiteUrl.value.trim(), revisionRequest: request, previousEmail: currentEmailHtml, conversationHistory }),
+        body: JSON.stringify({ websiteUrl: websiteUrlEl.value.trim(), revisionRequest: request, conversationHistory }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { showToast('Revision failed — try again'); return; }
       currentEmailHtml = data.emailHtml;
       conversationHistory = data.conversationHistory || [];
       revisionInput.value = '';
-      renderEmail();
+      renderEmail(websiteUrlEl.value.trim());
       showToast('Email updated ✓');
     } catch { showToast('Network error'); }
     finally {
@@ -318,14 +333,19 @@
 
   revisionInput.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) submitRevision(); });
 
-  function renderEmail() {
+  function renderEmail(url) {
     inputPanel.style.display = 'none';
     outputPanel.style.display = 'flex';
     const blob = new Blob([currentEmailHtml], { type: 'text/html' });
-    previewFrame.src = URL.createObjectURL(blob);
+    const blobUrl = URL.createObjectURL(blob);
+    previewFrame.src = blobUrl;
+    previewLarge.src = blobUrl;
     codeView.textContent = currentEmailHtml;
-    const hasPlaceholders = /%%[A-Z_]+%%/.test(currentEmailHtml);
-    document.getElementById('placeholders-note').style.display = hasPlaceholders ? 'block' : 'none';
+    // Show placeholder note only if image placeholders remain
+    const hasImgPlaceholders = /%%IMAGE_\d+%%/.test(currentEmailHtml);
+    document.getElementById('placeholders-note').style.display = hasImgPlaceholders ? 'block' : 'none';
+    // Show URL in mock bar
+    if (url) document.getElementById('preview-url-mock').textContent = '📧 ' + url;
     switchTab('preview');
   }
 
@@ -343,9 +363,21 @@
     }
   }
 
+  function toggleOverlay(open) {
+    document.getElementById('preview-overlay').classList.toggle('open', open);
+    if (open) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = '';
+  }
+
+  function closeOverlay(e) {
+    if (e.target === document.getElementById('preview-overlay')) toggleOverlay(false);
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleOverlay(false); });
+
   function copyHtml(src) {
     navigator.clipboard.writeText(currentEmailHtml).then(() => {
-      showToast('HTML copied to clipboard!');
+      showToast('HTML copied!');
       const btn = src === 'code' ? document.getElementById('code-copy-btn') : document.getElementById('copy-html-btn');
       const orig = btn.innerHTML;
       btn.classList.add('copied'); btn.textContent = '✓ Copied!';
@@ -356,7 +388,7 @@
   function resetAll() {
     currentEmailHtml = ''; conversationHistory = [];
     outputPanel.style.display = 'none'; inputPanel.style.display = 'block';
-    revisionInput.value = ''; hideError();
+    revisionInput.value = ''; hideError(); toggleOverlay(false);
   }
 
   function setLoading(show, text = '') {
