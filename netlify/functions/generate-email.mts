@@ -17,6 +17,13 @@ export default async (req: Request, _context: Context) => {
 
     const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
 
+    if (!anthropicKey) {
+      return new Response(
+        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured. Please add it in Netlify → Site configuration → Environment variables." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     // 1. Scrape website for brand kit
     let pageContent = "";
     try {
@@ -93,25 +100,28 @@ OUTPUT: Return ONLY the complete HTML email. Start with <!DOCTYPE html> and end 
       ];
     }
 
-    // 4. Call Claude
+    // 4. Call Claude — using claude-sonnet-4-6
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": anthropicKey ?? "",
+        "x-api-key": anthropicKey,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 8000,
+        model: "claude-sonnet-4-6",
+        max_tokens: 4096,
         messages,
       }),
     });
 
     if (!claudeRes.ok) {
-      const errText = await claudeRes.text();
+      const errData = await claudeRes.json().catch(() => null);
+      const errText = errData
+        ? JSON.stringify(errData)
+        : await claudeRes.text().catch(() => `HTTP ${claudeRes.status}`);
       return new Response(
-        JSON.stringify({ error: "AI generation failed", details: errText }),
+        JSON.stringify({ error: `AI generation failed (${claudeRes.status}): ${errText}` }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
