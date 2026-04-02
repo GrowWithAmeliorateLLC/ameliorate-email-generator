@@ -6,7 +6,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const { websiteUrl, images, emailType, revisionRequest, conversationHistory } = await req.json();
+    const { websiteUrl, ctaUrl, images, emailType, revisionRequest, conversationHistory } = await req.json();
 
     if (!websiteUrl) {
       return new Response(
@@ -18,12 +18,15 @@ export default async (req: Request, _context: Context) => {
     const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) {
       return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured in Netlify environment variables." }),
+        JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured." }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
-    // 1. Scrape website for brand content
+    // CTA link: use explicit ctaUrl if provided, else fall back to websiteUrl
+    const ctaLink = ctaUrl?.trim() || websiteUrl;
+
+    // 1. Scrape brand website (NOT the event/CTA URL)
     let pageContent = "";
     try {
       const jinaUrl = `https://r.jina.ai/${websiteUrl}`;
@@ -50,9 +53,7 @@ export default async (req: Request, _context: Context) => {
     // 2. Build image slots
     const imageSlots = images && images.length > 0
       ? images.map((url: string, i: number) =>
-          url.trim()
-            ? `IMAGE_${i + 1}: ${url.trim()}`
-            : `IMAGE_${i + 1}: %%IMAGE_${i + 1}%%`
+          url.trim() ? `IMAGE_${i + 1}: ${url.trim()}` : `IMAGE_${i + 1}: %%IMAGE_${i + 1}%%`
         ).join("\n")
       : [1, 2, 3].map(i => `IMAGE_${i}: %%IMAGE_${i}%%`).join("\n");
 
@@ -67,7 +68,7 @@ EMAIL RULES:
 - Max 600px wide, inline CSS only (no <style> tags)
 - Table-based layout for email client compatibility
 - Background colors on both table cell AND element
-- Images: alt text + width/height attributes set to 100% width
+- Images: alt text + width/height
 - Font stack: Arial, Helvetica, sans-serif
 - Use extracted brand colors
 - Warm, parent-friendly tone
@@ -75,7 +76,7 @@ EMAIL RULES:
 - CTA = large table-based button (full width, bold, brand color)
 - Footer: simple copyright/contact line only \u2014 NO unsubscribe link
 
-PLACEHOLDERS: Missing images use %%IMAGE_1%%, %%IMAGE_2%% etc. Do NOT add unsubscribe.
+PLACEHOLDERS: Missing images use %%IMAGE_1%%, %%IMAGE_2%% etc.
 
 OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markdown.`;
 
@@ -88,7 +89,7 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markd
       messages = [
         {
           role: "user",
-          content: `${systemPrompt}\n\n---\n\nURL: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT:\n${contentSnippet || "No content scraped \u2014 use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA BUTTON href: ${websiteUrl}\nUse the exact URL above as the CTA href \u2014 do NOT use a placeholder for it.\n\nReturn ONLY the complete HTML.`,
+          content: `${systemPrompt}\n\n---\n\nBRAND WEBSITE: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT (extract brand from this):\n${contentSnippet || "No content scraped \u2014 use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA BUTTON LINK: ${ctaLink}\nUse this exact URL as the href for the main CTA button. Do NOT change or placeholder this URL.\n\nReturn ONLY the complete HTML.`,
         },
       ];
     }
