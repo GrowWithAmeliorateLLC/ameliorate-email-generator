@@ -23,7 +23,7 @@
     .hero h1{font-family:'Montserrat',sans-serif;font-weight:900;font-size:clamp(24px,4vw,40px);line-height:1.1;margin-bottom:10px;}
     .gradient-text{background:linear-gradient(110deg,#8cc63f 0%,var(--seafoam) 50%,var(--purple) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
     .hero p{font-size:15px;color:var(--muted);max-width:520px;margin:0 auto;line-height:1.6;}
-    .workspace{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
+    .workspace{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
     .card{background:var(--white);border:1.5px solid var(--border);border-radius:20px;padding:24px;box-shadow:0 2px 20px rgba(10,10,10,.06);}
     .form-grid{display:flex;flex-direction:column;gap:16px;}
     .field{display:flex;flex-direction:column;gap:6px;}
@@ -32,10 +32,25 @@
     input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
     input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
+    /* Image detection panel */
+    .detected-panel{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
+    .detected-panel.visible{display:block;}
+    .detected-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+    .detected-label .spin{width:12px;height:12px;border:2px solid rgba(124,77,255,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:none;}
+    .detected-label.loading .spin{display:inline-block;}
+    .detected-thumbs{display:flex;flex-wrap:wrap;gap:8px;}
+    .thumb-item{position:relative;width:64px;height:48px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .15s;background:#eee;flex-shrink:0;}
+    .thumb-item:hover{border-color:var(--purple);transform:scale(1.05);}
+    .thumb-item.selected{border-color:var(--lime);box-shadow:0 0 0 2px rgba(201,226,101,.4);}
+    .thumb-item img{width:100%;height:100%;object-fit:cover;}
+    .thumb-check{position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--lime);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;}
+    .thumb-item.selected .thumb-check{display:flex;}
+    .detected-none{font-size:12px;color:var(--muted);font-style:italic;}
+    /* Image slots */
     .images-section{display:flex;flex-direction:column;gap:7px;}
     .image-row{display:flex;align-items:center;gap:7px;}
     .img-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;color:var(--muted);white-space:nowrap;width:48px;flex-shrink:0;}
-    .image-row input{flex:1;}
+    .image-row input{flex:1;font-size:13px;}
     .add-image-btn,.remove-image-btn{width:27px;height:27px;border-radius:7px;border:1.5px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;color:var(--muted);transition:all .15s;flex-shrink:0;line-height:1;}
     .add-image-btn:hover{border-color:var(--lime);color:var(--ink);background:rgba(201,226,101,.1);}
     .remove-image-btn:hover{border-color:var(--error);color:var(--error);background:rgba(239,68,68,.08);}
@@ -58,16 +73,13 @@
     .tab-bar{display:flex;gap:4px;background:#f0ecf5;border-radius:10px;padding:4px;}
     .tab-btn{flex:1;padding:6px 13px;border:none;border-radius:7px;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;}
     .tab-btn.active{background:var(--white);color:var(--ink);box-shadow:0 1px 6px rgba(10,10,10,.08);}
-    /* Expand button */
     .btn-expand{display:flex;align-items:center;gap:5px;padding:7px 13px;border:1.5px solid var(--border);border-radius:8px;background:transparent;font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap;}
     .btn-expand:hover{border-color:var(--purple);color:var(--purple);background:rgba(124,77,255,.06);}
-    /* Preview */
     .preview-wrap{border:1.5px solid var(--border);border-radius:14px;overflow:hidden;background:#f8f8f8;}
     .preview-bar{background:#f0ecf5;padding:9px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
     .preview-dot{width:10px;height:10px;border-radius:50%;}
     .preview-bar .url-mock{flex:1;background:var(--white);border-radius:6px;padding:4px 11px;font-size:11px;color:var(--muted);border:1px solid var(--border);margin:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     iframe#preview-frame{width:100%;height:800px;border:none;background:var(--white);display:block;}
-    /* Fullscreen overlay */
     .preview-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(10,10,10,.6);backdrop-filter:blur(4px);}
     .preview-overlay.open{display:flex;align-items:center;justify-content:center;}
     .overlay-inner{background:var(--white);border-radius:16px;overflow:hidden;width:680px;max-width:95vw;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(10,10,10,.3);}
@@ -76,7 +88,6 @@
     .overlay-close{width:28px;height:28px;border:none;background:transparent;cursor:pointer;font-size:18px;color:var(--muted);border-radius:6px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
     .overlay-close:hover{background:rgba(239,68,68,.1);color:var(--error);}
     iframe#preview-large{width:100%;flex:1;border:none;min-height:500px;}
-    /* Code */
     .code-wrap{border:1.5px solid var(--border);border-radius:14px;overflow:hidden;display:none;}
     .code-wrap.visible{display:block;}
     .code-header{background:var(--ink);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;}
@@ -85,12 +96,9 @@
     .code-copy-btn:hover{background:rgba(201,226,101,.3);}
     .code-copy-btn.copied{background:rgba(34,197,94,.2);border-color:rgba(34,197,94,.4);color:#22c55e;}
     pre#code-view{margin:0;padding:20px;overflow-x:auto;font-family:'Monaco','Menlo',monospace;font-size:12px;line-height:1.6;color:#e8e8e8;background:#1a1a2e;max-height:760px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;}
-    /* Placeholders note */
     .placeholders-note{background:rgba(124,77,255,.06);border:1.5px solid rgba(124,77,255,.15);border-radius:10px;padding:11px 15px;font-size:12px;color:var(--purple);display:none;line-height:1.6;}
     .placeholders-note.visible{display:block;}
-    .placeholders-note strong{font-weight:700;}
     .placeholders-note code{background:rgba(124,77,255,.1);padding:1px 5px;border-radius:4px;font-family:monospace;font-size:11px;}
-    /* Revision */
     .revision-panel{background:var(--white);border:1.5px solid var(--border);border-radius:16px;padding:18px;}
     .revision-title{font-family:'Montserrat',sans-serif;font-weight:800;font-size:13px;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
     .revision-title .dot{width:8px;height:8px;background:var(--lime);border-radius:50%;animation:blink 1.5s infinite;flex-shrink:0;}
@@ -115,7 +123,6 @@
   <div class="badge">AI Powered</div>
 </header>
 
-<!-- Fullscreen preview overlay -->
 <div class="preview-overlay" id="preview-overlay" onclick="closeOverlay(event)">
   <div class="overlay-inner">
     <div class="overlay-bar">
@@ -129,7 +136,7 @@
 <main>
   <div class="hero">
     <h1>Build <span class="gradient-text">On-Brand Emails</span><br />in seconds.</h1>
-    <p>Drop a client URL, add up to 5 images, describe the email — get a copy-paste ready HTML email that matches their brand.</p>
+    <p>Drop a client URL — AI pulls their brand kit and detects their logo automatically.</p>
   </div>
 
   <div id="loading">
@@ -139,15 +146,24 @@
   </div>
 
   <div class="workspace" id="workspace">
-    <!-- LEFT -->
     <div id="input-panel">
       <div class="card">
         <div class="form-grid">
+
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">AI extracts colors, logo &amp; tone — also used as your CTA link</span>
+            <span class="field-hint">AI extracts brand + detects logo — also used as your CTA link</span>
             <input type="url" id="website-url" placeholder="https://client-website.com" autocomplete="off" />
+          </div>
+
+          <!-- Auto-detected images panel -->
+          <div class="detected-panel" id="detected-panel">
+            <div class="detected-label" id="detected-label">
+              <span class="spin"></span>
+              <span id="detected-label-text">Detecting logo &amp; images…</span>
+            </div>
+            <div class="detected-thumbs" id="detected-thumbs"></div>
           </div>
 
           <div class="section-label">Email Details</div>
@@ -157,13 +173,12 @@
             <textarea id="email-type" placeholder="e.g. Summer camp enrollment, Birthday party promo, Back-to-school event invite…" rows="3"></textarea>
           </div>
 
-          <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5)</span></div>
+          <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5 — click detected images above or paste URLs)</span></div>
           <div class="field">
-            <span class="field-hint">Paste Google Cloud Console image URLs. Leave blank for placeholders.</span>
             <div class="images-section" id="images-section">
               <div class="image-row">
                 <span class="img-label">IMG 1</span>
-                <input type="url" class="img-input" placeholder="https://storage.googleapis.com/…" />
+                <input type="url" class="img-input" placeholder="https://… or click a detected image above" />
                 <button class="add-image-btn" id="add-img-btn" title="Add image">+</button>
               </div>
             </div>
@@ -179,13 +194,10 @@
       </div>
     </div>
 
-    <!-- RIGHT -->
     <div class="output-panel" id="output-panel" style="display:none;">
-
       <div class="placeholders-note" id="placeholders-note">
-        <strong>Heads up:</strong> Replace <code>%%IMAGE_1%%</code> etc. with actual image URLs before sending.
+        Replace <code>%%IMAGE_1%%</code> etc. with actual image URLs before sending.
       </div>
-
       <div class="output-toolbar">
         <span class="output-title">✉️ Email Ready</span>
         <div class="toolbar-actions">
@@ -193,7 +205,7 @@
             <button class="tab-btn active" id="tab-preview" onclick="switchTab('preview')">Preview</button>
             <button class="tab-btn" id="tab-code" onclick="switchTab('code')">HTML Code</button>
           </div>
-          <button class="btn-expand" id="expand-btn" onclick="toggleOverlay(true)">
+          <button class="btn-expand" onclick="toggleOverlay(true)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
             Expand
           </button>
@@ -204,7 +216,6 @@
           <button class="btn-tool" onclick="resetAll()">↩ New Email</button>
         </div>
       </div>
-
       <div class="preview-wrap" id="preview-wrap">
         <div class="preview-bar">
           <div class="preview-dot" style="background:#ff5f57"></div>
@@ -214,7 +225,6 @@
         </div>
         <iframe id="preview-frame" title="Email Preview" sandbox="allow-same-origin"></iframe>
       </div>
-
       <div class="code-wrap" id="code-wrap">
         <div class="code-header">
           <span>HTML Source</span>
@@ -222,11 +232,10 @@
         </div>
         <pre id="code-view"></pre>
       </div>
-
       <div class="revision-panel">
         <div class="revision-title"><span class="dot"></span>Want to change anything?</div>
         <div class="revision-row">
-          <textarea id="revision-input" placeholder="e.g. Make the CTA button orange, change the headline to 'Summer is here!', add a second image section, make tone more urgent…"></textarea>
+          <textarea id="revision-input" placeholder="e.g. Make the CTA button orange, swap hero to IMG 2, change headline to 'Summer is here!', add pricing section…"></textarea>
           <button class="btn-revise" id="revise-btn" onclick="submitRevision()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             Revise
@@ -234,7 +243,6 @@
         </div>
         <p style="font-size:11px;color:var(--muted);margin-top:8px;">⌘+Enter / Ctrl+Enter to revise quickly.</p>
       </div>
-
     </div>
   </div>
 </main>
@@ -244,33 +252,112 @@
 <script>
   let currentEmailHtml = '', conversationHistory = [], imageCount = 1;
   const MAX_IMAGES = 5;
+  let scrapeTimer = null;
+  let detectedImageUrls = [];
 
-  const websiteUrlEl = document.getElementById('website-url');
-  const emailTypeEl  = document.getElementById('email-type');
-  const generateBtn  = document.getElementById('generate-btn');
-  const formError    = document.getElementById('form-error');
-  const loading      = document.getElementById('loading');
-  const loadingText  = document.getElementById('loading-text');
-  const workspace    = document.getElementById('workspace');
-  const inputPanel   = document.getElementById('input-panel');
-  const outputPanel  = document.getElementById('output-panel');
-  const previewFrame = document.getElementById('preview-frame');
-  const previewLarge = document.getElementById('preview-large');
-  const codeView     = document.getElementById('code-view');
+  const websiteUrlEl  = document.getElementById('website-url');
+  const emailTypeEl   = document.getElementById('email-type');
+  const generateBtn   = document.getElementById('generate-btn');
+  const formError     = document.getElementById('form-error');
+  const loading       = document.getElementById('loading');
+  const loadingText   = document.getElementById('loading-text');
+  const workspace     = document.getElementById('workspace');
+  const inputPanel    = document.getElementById('input-panel');
+  const outputPanel   = document.getElementById('output-panel');
+  const previewFrame  = document.getElementById('preview-frame');
+  const previewLarge  = document.getElementById('preview-large');
+  const codeView      = document.getElementById('code-view');
   const revisionInput = document.getElementById('revision-input');
-  const reviseBtn    = document.getElementById('revise-btn');
-  const addImgBtn    = document.getElementById('add-img-btn');
+  const reviseBtn     = document.getElementById('revise-btn');
+  const addImgBtn     = document.getElementById('add-img-btn');
   const imagesSection = document.getElementById('images-section');
+  const detectedPanel = document.getElementById('detected-panel');
+  const detectedLabel = document.getElementById('detected-label');
+  const detectedLabelText = document.getElementById('detected-label-text');
+  const detectedThumbs = document.getElementById('detected-thumbs');
 
-  addImgBtn.addEventListener('click', () => {
+  // ── Auto-detect images when URL is typed ──
+  websiteUrlEl.addEventListener('input', () => {
+    const url = websiteUrlEl.value.trim();
+    if (scrapeTimer) clearTimeout(scrapeTimer);
+    if (!url.startsWith('http')) {
+      detectedPanel.classList.remove('visible');
+      return;
+    }
+    // Show loading state after short delay
+    scrapeTimer = setTimeout(() => scrapeImages(url), 800);
+  });
+
+  async function scrapeImages(url) {
+    detectedPanel.classList.add('visible');
+    detectedLabel.classList.add('loading');
+    detectedLabelText.textContent = 'Detecting logo & images\u2026';
+    detectedThumbs.innerHTML = '';
+    detectedImageUrls = [];
+
+    try {
+      const res = await fetch(`/api/scrape-images?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      detectedLabel.classList.remove('loading');
+
+      if (!data.images || data.images.length === 0) {
+        detectedLabelText.textContent = 'No images detected';
+        detectedThumbs.innerHTML = '<span class="detected-none">None found \u2014 paste URLs below manually</span>';
+        return;
+      }
+
+      detectedImageUrls = data.images.map(i => i.url);
+      detectedLabelText.textContent = `${data.images.length} image${data.images.length > 1 ? 's' : ''} detected \u2014 click to add to email`;
+
+      data.images.forEach((img, idx) => {
+        const div = document.createElement('div');
+        div.className = 'thumb-item';
+        div.title = img.url;
+        div.innerHTML = `<img src="${img.url}" alt="detected ${idx+1}" loading="lazy" onerror="this.closest('.thumb-item').style.display='none'" /><div class="thumb-check">\u2713</div>`;
+        div.addEventListener('click', () => toggleDetectedImage(div, img.url));
+        detectedThumbs.appendChild(div);
+      });
+    } catch {
+      detectedLabel.classList.remove('loading');
+      detectedLabelText.textContent = 'Could not detect images';
+    }
+  }
+
+  function toggleDetectedImage(thumbEl, imgUrl) {
+    const isSelected = thumbEl.classList.contains('selected');
+    if (isSelected) {
+      // Deselect: remove from first matching slot
+      thumbEl.classList.remove('selected');
+      const inputs = Array.from(imagesSection.querySelectorAll('.img-input'));
+      const match = inputs.find(inp => inp.value === imgUrl);
+      if (match) match.value = '';
+    } else {
+      // Select: put in next empty slot, or add new slot
+      thumbEl.classList.add('selected');
+      const inputs = Array.from(imagesSection.querySelectorAll('.img-input'));
+      const empty = inputs.find(inp => !inp.value.trim());
+      if (empty) {
+        empty.value = imgUrl;
+      } else if (imageCount < MAX_IMAGES) {
+        addImageRow(imgUrl);
+      } else {
+        showToast('Max 5 images reached');
+        thumbEl.classList.remove('selected');
+      }
+    }
+  }
+
+  addImgBtn.addEventListener('click', () => addImageRow(''));
+
+  function addImageRow(prefill) {
     if (imageCount >= MAX_IMAGES) return;
     imageCount++;
     const row = document.createElement('div');
     row.className = 'image-row';
-    row.innerHTML = `<span class="img-label">IMG ${imageCount}</span><input type="url" class="img-input" placeholder="https://storage.googleapis.com/…" /><button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">×</button>`;
+    row.innerHTML = `<span class="img-label">IMG ${imageCount}</span><input type="url" class="img-input" placeholder="https://\u2026" value="${prefill}" /><button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">\u00d7</button>`;
     imagesSection.appendChild(row);
     if (imageCount >= MAX_IMAGES) addImgBtn.style.display = 'none';
-  });
+  }
 
   function removeImageRow(btn) {
     btn.closest('.image-row').remove();
@@ -288,9 +375,9 @@
     if (!url.startsWith('http')) { showError('Please enter a valid website URL starting with http.'); return; }
     hideError();
     conversationHistory = [];
-    setLoading(true, 'Reading brand kit…');
-    setTimeout(() => setLoadingText('Extracting colors & logo…'), 5000);
-    setTimeout(() => setLoadingText('Writing your email…'), 10000);
+    setLoading(true, 'Reading brand kit\u2026');
+    setTimeout(() => setLoadingText('Extracting colors & logo\u2026'), 5000);
+    setTimeout(() => setLoadingText('Writing your email\u2026'), 10000);
     try {
       const res = await fetch('/api/generate-email', {
         method: 'POST',
@@ -310,7 +397,7 @@
     const request = revisionInput.value.trim();
     if (!request) return;
     reviseBtn.disabled = true;
-    reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revising…';
+    reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revising\u2026';
     try {
       const res = await fetch('/api/generate-email', {
         method: 'POST',
@@ -318,12 +405,12 @@
         body: JSON.stringify({ websiteUrl: websiteUrlEl.value.trim(), revisionRequest: request, conversationHistory }),
       });
       const data = await res.json();
-      if (!res.ok || data.error) { showToast('Revision failed — try again'); return; }
+      if (!res.ok || data.error) { showToast('Revision failed \u2014 try again'); return; }
       currentEmailHtml = data.emailHtml;
       conversationHistory = data.conversationHistory || [];
       revisionInput.value = '';
       renderEmail(websiteUrlEl.value.trim());
-      showToast('Email updated ✓');
+      showToast('Email updated \u2713');
     } catch { showToast('Network error'); }
     finally {
       reviseBtn.disabled = false;
@@ -341,38 +428,24 @@
     previewFrame.src = blobUrl;
     previewLarge.src = blobUrl;
     codeView.textContent = currentEmailHtml;
-    // Show placeholder note only if image placeholders remain
-    const hasImgPlaceholders = /%%IMAGE_\d+%%/.test(currentEmailHtml);
-    document.getElementById('placeholders-note').style.display = hasImgPlaceholders ? 'block' : 'none';
-    // Show URL in mock bar
-    if (url) document.getElementById('preview-url-mock').textContent = '📧 ' + url;
+    const hasPlaceholders = /%%IMAGE_\d+%%/.test(currentEmailHtml);
+    document.getElementById('placeholders-note').style.display = hasPlaceholders ? 'block' : 'none';
+    if (url) document.getElementById('preview-url-mock').textContent = '\ud83d\udce7 ' + url;
     switchTab('preview');
   }
 
   function switchTab(tab) {
-    const pw = document.getElementById('preview-wrap');
-    const cw = document.getElementById('code-wrap');
-    const tp = document.getElementById('tab-preview');
-    const tc = document.getElementById('tab-code');
-    if (tab === 'preview') {
-      pw.style.display = 'block'; cw.classList.remove('visible');
-      tp.classList.add('active'); tc.classList.remove('active');
-    } else {
-      pw.style.display = 'none'; cw.classList.add('visible');
-      tc.classList.add('active'); tp.classList.remove('active');
-    }
+    const pw = document.getElementById('preview-wrap'), cw = document.getElementById('code-wrap');
+    const tp = document.getElementById('tab-preview'), tc = document.getElementById('tab-code');
+    if (tab === 'preview') { pw.style.display='block'; cw.classList.remove('visible'); tp.classList.add('active'); tc.classList.remove('active'); }
+    else { pw.style.display='none'; cw.classList.add('visible'); tc.classList.add('active'); tp.classList.remove('active'); }
   }
 
   function toggleOverlay(open) {
     document.getElementById('preview-overlay').classList.toggle('open', open);
-    if (open) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
+    document.body.style.overflow = open ? 'hidden' : '';
   }
-
-  function closeOverlay(e) {
-    if (e.target === document.getElementById('preview-overlay')) toggleOverlay(false);
-  }
-
+  function closeOverlay(e) { if (e.target === document.getElementById('preview-overlay')) toggleOverlay(false); }
   document.addEventListener('keydown', e => { if (e.key === 'Escape') toggleOverlay(false); });
 
   function copyHtml(src) {
@@ -380,7 +453,7 @@
       showToast('HTML copied!');
       const btn = src === 'code' ? document.getElementById('code-copy-btn') : document.getElementById('copy-html-btn');
       const orig = btn.innerHTML;
-      btn.classList.add('copied'); btn.textContent = '✓ Copied!';
+      btn.classList.add('copied'); btn.textContent = '\u2713 Copied!';
       setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 2000);
     });
   }
@@ -391,19 +464,11 @@
     revisionInput.value = ''; hideError(); toggleOverlay(false);
   }
 
-  function setLoading(show, text = '') {
-    loading.style.display = show ? 'block' : 'none';
-    workspace.style.display = show ? 'none' : 'grid';
-    if (text) loadingText.textContent = text;
-  }
-  function setLoadingText(t) { loadingText.textContent = t; }
-  function showError(msg) { formError.textContent = msg; formError.style.display = 'block'; }
-  function hideError() { formError.style.display = 'none'; }
-  function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-  }
+  function setLoading(show, text='') { loading.style.display=show?'block':'none'; workspace.style.display=show?'none':'grid'; if(text) loadingText.textContent=text; }
+  function setLoadingText(t) { loadingText.textContent=t; }
+  function showError(msg) { formError.textContent=msg; formError.style.display='block'; }
+  function hideError() { formError.style.display='none'; }
+  function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
 </script>
 </body>
 </html>
