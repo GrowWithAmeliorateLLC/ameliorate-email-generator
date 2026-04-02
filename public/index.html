@@ -32,9 +32,18 @@
     input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
     input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
-    /* CTA URL field highlight */
-    .cta-field input{border-color:rgba(201,226,101,.5);background:rgba(201,226,101,.04);}
-    .cta-field input:focus{border-color:var(--lime);}
+    /* CTA field */
+    .cta-field input{border-color:rgba(201,226,101,.4);}
+    /* Event details box */
+    .event-box{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
+    .event-box.visible{display:block;}
+    .event-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .event-box-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);display:flex;align-items:center;gap:6px;}
+    .event-box-label .spin{width:11px;height:11px;border:2px solid rgba(124,77,255,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:none;}
+    .event-box-label.loading .spin{display:inline-block;}
+    .event-status{font-size:10px;color:var(--muted);font-style:italic;}
+    .event-box textarea{background:rgba(255,255,255,.7);border-color:rgba(124,77,255,.2);font-size:13px;min-height:80px;}
+    .event-box textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,77,255,.12);}
     /* Image detection */
     .detected-panel{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .detected-panel.visible{display:block;}
@@ -126,10 +135,7 @@
 
 <div class="preview-overlay" id="preview-overlay" onclick="closeOverlay(event)">
   <div class="overlay-inner">
-    <div class="overlay-bar">
-      <span>📧 Full Preview</span>
-      <button class="overlay-close" onclick="toggleOverlay(false)">×</button>
-    </div>
+    <div class="overlay-bar"><span>📧 Full Preview</span><button class="overlay-close" onclick="toggleOverlay(false)">×</button></div>
     <iframe id="preview-large" title="Full Email Preview" sandbox="allow-same-origin"></iframe>
   </div>
 </div>
@@ -137,7 +143,7 @@
 <main>
   <div class="hero">
     <h1>Build <span class="gradient-text">On-Brand Emails</span><br />in seconds.</h1>
-    <p>Drop a brand URL to extract colors &amp; logo, then paste your event or booking link separately for the CTA button.</p>
+    <p>Drop a brand URL + event/booking link — AI pulls the brand kit and event details automatically.</p>
   </div>
 
   <div id="loading">
@@ -154,46 +160,50 @@
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">Used to extract brand colors, logo &amp; tone — must be a real website (not a booking link)</span>
-            <input type="url" id="website-url" placeholder="https://client-website.com" autocomplete="off" />
+            <span class="field-hint">Used for brand colors, logo &amp; tone extraction</span>
+            <input type="url" id="website-url" placeholder="https://codeninjas.com/il-algonquin" autocomplete="off" />
+          </div>
+          <div class="detected-panel" id="detected-panel">
+            <div class="detected-label" id="detected-label"><span class="spin"></span><span id="detected-label-text">Detecting images…</span></div>
+            <div class="detected-thumbs" id="detected-thumbs"></div>
           </div>
 
-          <!-- Auto-detected images -->
-          <div class="detected-panel" id="detected-panel">
-            <div class="detected-label" id="detected-label">
-              <span class="spin"></span>
-              <span id="detected-label-text">Detecting logo &amp; images…</span>
+          <div class="section-label">Event / CTA</div>
+          <div class="field cta-field">
+            <label for="cta-url">Event or Booking URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
+            <span class="field-hint">MyStudio, LineLeader, or any booking link — AI will try to extract event details automatically</span>
+            <input type="url" id="cta-url" placeholder="https://cn.mystudio.io/e/?=…" autocomplete="off" />
+          </div>
+
+          <!-- Auto-extracted event details -->
+          <div class="event-box" id="event-box">
+            <div class="event-box-header">
+              <div class="event-box-label" id="event-box-label"><span class="spin"></span><span id="event-box-label-text">Reading event page…</span></div>
+              <span class="event-status" id="event-status"></span>
             </div>
-            <div class="detected-thumbs" id="detected-thumbs"></div>
+            <textarea id="event-details" placeholder="Event details will appear here — edit as needed before generating…"></textarea>
           </div>
 
           <div class="section-label">Email Details</div>
           <div class="field">
-            <label for="email-type">Email Type / Purpose</label>
-            <span class="field-hint">Describe what this email is for</span>
-            <textarea id="email-type" placeholder="e.g. Summer camp enrollment, Birthday party promo, Back-to-school event invite…" rows="3"></textarea>
-          </div>
-
-          <div class="field cta-field">
-            <label for="cta-url">CTA Button Link <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-            <span class="field-hint">Paste your MyStudio, booking or event URL here — goes directly into the button. Leave blank to use the brand URL above.</span>
-            <input type="url" id="cta-url" placeholder="https://cn.mystudio.io/e/?=… or any booking link" autocomplete="off" />
+            <label for="email-type">Email Purpose</label>
+            <span class="field-hint">Brief description if event details above don’t cover it</span>
+            <textarea id="email-type" placeholder="e.g. Summer camp enrollment email for parents" rows="2"></textarea>
           </div>
 
           <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5)</span></div>
           <div class="field">
-            <span class="field-hint">Click detected images above or paste URLs. Leave blank for placeholders.</span>
+            <span class="field-hint">Click detected images or paste URLs. Leave blank for placeholders.</span>
             <div class="images-section" id="images-section">
               <div class="image-row">
                 <span class="img-label">IMG 1</span>
-                <input type="url" class="img-input" placeholder="https://… or click thumbnail above" />
-                <button class="add-image-btn" id="add-img-btn" title="Add image">+</button>
+                <input type="url" class="img-input" placeholder="https://…" />
+                <button class="add-image-btn" id="add-img-btn" title="Add">+</button>
               </div>
             </div>
           </div>
 
           <div class="error-box" id="form-error"></div>
-
           <button class="btn-primary" id="generate-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             Generate Email
@@ -203,9 +213,7 @@
     </div>
 
     <div class="output-panel" id="output-panel" style="display:none;">
-      <div class="placeholders-note" id="placeholders-note">
-        Replace <code>%%IMAGE_1%%</code> etc. with actual image URLs before sending.
-      </div>
+      <div class="placeholders-note" id="placeholders-note">Replace <code>%%IMAGE_1%%</code> etc. with actual image URLs before sending.</div>
       <div class="output-toolbar">
         <span class="output-title">✉️ Email Ready</span>
         <div class="toolbar-actions">
@@ -234,16 +242,13 @@
         <iframe id="preview-frame" title="Email Preview" sandbox="allow-same-origin"></iframe>
       </div>
       <div class="code-wrap" id="code-wrap">
-        <div class="code-header">
-          <span>HTML Source</span>
-          <button class="code-copy-btn" id="code-copy-btn" onclick="copyHtml('code')">Copy</button>
-        </div>
+        <div class="code-header"><span>HTML Source</span><button class="code-copy-btn" id="code-copy-btn" onclick="copyHtml('code')">Copy</button></div>
         <pre id="code-view"></pre>
       </div>
       <div class="revision-panel">
         <div class="revision-title"><span class="dot"></span>Want to change anything?</div>
         <div class="revision-row">
-          <textarea id="revision-input" placeholder="e.g. Make the button orange, swap hero to IMG 2, change headline to 'Summer is here!', add a pricing section…"></textarea>
+          <textarea id="revision-input" placeholder="e.g. Make the button orange, swap hero to IMG 2, make tone more urgent, add a pricing section…"></textarea>
           <button class="btn-revise" id="revise-btn" onclick="submitRevision()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             Revise
@@ -260,42 +265,84 @@
 <script>
   let currentEmailHtml = '', conversationHistory = [], imageCount = 1;
   const MAX_IMAGES = 5;
-  let scrapeTimer = null;
+  let brandScrapeTimer = null, eventScrapeTimer = null;
 
-  const websiteUrlEl  = document.getElementById('website-url');
-  const ctaUrlEl      = document.getElementById('cta-url');
-  const emailTypeEl   = document.getElementById('email-type');
-  const generateBtn   = document.getElementById('generate-btn');
-  const formError     = document.getElementById('form-error');
-  const loading       = document.getElementById('loading');
-  const loadingText   = document.getElementById('loading-text');
-  const workspace     = document.getElementById('workspace');
-  const inputPanel    = document.getElementById('input-panel');
-  const outputPanel   = document.getElementById('output-panel');
-  const previewFrame  = document.getElementById('preview-frame');
-  const previewLarge  = document.getElementById('preview-large');
-  const codeView      = document.getElementById('code-view');
-  const revisionInput = document.getElementById('revision-input');
-  const reviseBtn     = document.getElementById('revise-btn');
-  const addImgBtn     = document.getElementById('add-img-btn');
-  const imagesSection = document.getElementById('images-section');
-  const detectedPanel = document.getElementById('detected-panel');
-  const detectedLabel = document.getElementById('detected-label');
+  const websiteUrlEl   = document.getElementById('website-url');
+  const ctaUrlEl       = document.getElementById('cta-url');
+  const eventDetailsEl = document.getElementById('event-details');
+  const emailTypeEl    = document.getElementById('email-type');
+  const generateBtn    = document.getElementById('generate-btn');
+  const formError      = document.getElementById('form-error');
+  const loading        = document.getElementById('loading');
+  const loadingText    = document.getElementById('loading-text');
+  const workspace      = document.getElementById('workspace');
+  const inputPanel     = document.getElementById('input-panel');
+  const outputPanel    = document.getElementById('output-panel');
+  const previewFrame   = document.getElementById('preview-frame');
+  const previewLarge   = document.getElementById('preview-large');
+  const codeView       = document.getElementById('code-view');
+  const revisionInput  = document.getElementById('revision-input');
+  const reviseBtn      = document.getElementById('revise-btn');
+  const addImgBtn      = document.getElementById('add-img-btn');
+  const imagesSection  = document.getElementById('images-section');
+  const detectedPanel  = document.getElementById('detected-panel');
+  const detectedLabel  = document.getElementById('detected-label');
   const detectedLabelText = document.getElementById('detected-label-text');
   const detectedThumbs = document.getElementById('detected-thumbs');
+  const eventBox       = document.getElementById('event-box');
+  const eventBoxLabel  = document.getElementById('event-box-label');
+  const eventBoxLabelText = document.getElementById('event-box-label-text');
+  const eventStatus    = document.getElementById('event-status');
 
-  // Auto-detect images when brand URL typed
+  // Brand URL → logo detection
   websiteUrlEl.addEventListener('input', () => {
     const url = websiteUrlEl.value.trim();
-    if (scrapeTimer) clearTimeout(scrapeTimer);
+    if (brandScrapeTimer) clearTimeout(brandScrapeTimer);
     if (!url.startsWith('http')) { detectedPanel.classList.remove('visible'); return; }
-    scrapeTimer = setTimeout(() => scrapeImages(url), 800);
+    brandScrapeTimer = setTimeout(() => scrapeImages(url), 800);
   });
+
+  // CTA URL → event detail extraction
+  ctaUrlEl.addEventListener('input', () => {
+    const url = ctaUrlEl.value.trim();
+    if (eventScrapeTimer) clearTimeout(eventScrapeTimer);
+    if (!url.startsWith('http')) { eventBox.classList.remove('visible'); return; }
+    eventScrapeTimer = setTimeout(() => scrapeEvent(url), 900);
+  });
+
+  async function scrapeEvent(url) {
+    eventBox.classList.add('visible');
+    eventBoxLabel.classList.add('loading');
+    eventBoxLabelText.textContent = 'Reading event page\u2026';
+    eventStatus.textContent = '';
+    eventDetailsEl.value = '';
+    eventDetailsEl.placeholder = 'Reading event details\u2026';
+
+    try {
+      const res = await fetch(`/api/scrape-event?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      eventBoxLabel.classList.remove('loading');
+
+      if (data.success && data.details) {
+        eventDetailsEl.value = data.details;
+        eventBoxLabelText.textContent = 'Event details extracted \u2713 — edit if needed';
+        eventStatus.textContent = 'auto-filled';
+      } else {
+        eventBoxLabelText.textContent = 'Could not read page — add details manually';
+        eventStatus.textContent = data.reason === 'no_content' ? 'JS-only page' : '';
+        eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week. Kids build and program their own robots.';
+      }
+    } catch {
+      eventBoxLabel.classList.remove('loading');
+      eventBoxLabelText.textContent = 'Add event details manually';
+      eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week.';
+    }
+  }
 
   async function scrapeImages(url) {
     detectedPanel.classList.add('visible');
     detectedLabel.classList.add('loading');
-    detectedLabelText.textContent = 'Detecting logo & images\u2026';
+    detectedLabelText.textContent = 'Detecting images\u2026';
     detectedThumbs.innerHTML = '';
     try {
       const res = await fetch(`/api/scrape-images?url=${encodeURIComponent(url)}`);
@@ -303,14 +350,13 @@
       detectedLabel.classList.remove('loading');
       if (!data.images || data.images.length === 0) {
         detectedLabelText.textContent = 'No images detected';
-        detectedThumbs.innerHTML = '<span class="detected-none">None found \u2014 paste URLs below manually</span>';
+        detectedThumbs.innerHTML = '<span class="detected-none">None found</span>';
         return;
       }
-      detectedLabelText.textContent = `${data.images.length} image${data.images.length > 1 ? 's' : ''} detected \u2014 click to use`;
+      detectedLabelText.textContent = `${data.images.length} image${data.images.length>1?'s':''} detected \u2014 click to use`;
       data.images.forEach((img, idx) => {
         const div = document.createElement('div');
-        div.className = 'thumb-item';
-        div.title = img.url;
+        div.className = 'thumb-item'; div.title = img.url;
         div.innerHTML = `<img src="${img.url}" alt="img ${idx+1}" loading="lazy" onerror="this.closest('.thumb-item').style.display='none'" /><div class="thumb-check">\u2713</div>`;
         div.addEventListener('click', () => toggleDetectedImage(div, img.url));
         detectedThumbs.appendChild(div);
@@ -340,16 +386,14 @@
   function addImageRow(prefill) {
     if (imageCount >= MAX_IMAGES) return;
     imageCount++;
-    const row = document.createElement('div');
-    row.className = 'image-row';
+    const row = document.createElement('div'); row.className = 'image-row';
     row.innerHTML = `<span class="img-label">IMG ${imageCount}</span><input type="url" class="img-input" placeholder="https://\u2026" value="${prefill}" /><button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">\u00d7</button>`;
     imagesSection.appendChild(row);
     if (imageCount >= MAX_IMAGES) addImgBtn.style.display = 'none';
   }
   function removeImageRow(btn) {
-    btn.closest('.image-row').remove(); imageCount--;
-    addImgBtn.style.display = '';
-    imagesSection.querySelectorAll('.image-row').forEach((row,i) => row.querySelector('.img-label').textContent = `IMG ${i+1}`);
+    btn.closest('.image-row').remove(); imageCount--; addImgBtn.style.display = '';
+    imagesSection.querySelectorAll('.image-row').forEach((r,i) => r.querySelector('.img-label').textContent = `IMG ${i+1}`);
   }
   function getImages() { return Array.from(imagesSection.querySelectorAll('.img-input')).map(inp => inp.value.trim()); }
 
@@ -367,8 +411,9 @@
         body: JSON.stringify({
           websiteUrl: url,
           ctaUrl: ctaUrlEl.value.trim(),
+          eventDetails: eventDetailsEl.value.trim(),
           images: getImages(),
-          emailType: emailTypeEl.value.trim() || 'general promotional email',
+          emailType: emailTypeEl.value.trim(),
         }),
       });
       const data = await res.json();
@@ -384,17 +429,15 @@
     const request = revisionInput.value.trim();
     if (!request) return;
     reviseBtn.disabled = true;
-    reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revising\u2026';
+    reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revising\u2026';
     try {
       const res = await fetch('/api/generate-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ websiteUrl: websiteUrlEl.value.trim(), revisionRequest: request, conversationHistory }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { showToast('Revision failed \u2014 try again'); return; }
-      currentEmailHtml = data.emailHtml;
-      conversationHistory = data.conversationHistory || [];
+      currentEmailHtml = data.emailHtml; conversationHistory = data.conversationHistory || [];
       revisionInput.value = '';
       renderEmail(ctaUrlEl.value.trim() || websiteUrlEl.value.trim());
       showToast('Email updated \u2713');
@@ -404,23 +447,19 @@
       reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Revise';
     }
   }
-
   revisionInput.addEventListener('keydown', e => { if (e.key==='Enter'&&(e.ctrlKey||e.metaKey)) submitRevision(); });
 
   function renderEmail(ctaUrl) {
-    inputPanel.style.display = 'none';
-    outputPanel.style.display = 'flex';
-    const blob = new Blob([currentEmailHtml], { type: 'text/html' });
+    inputPanel.style.display='none'; outputPanel.style.display='flex';
+    const blob = new Blob([currentEmailHtml],{type:'text/html'});
     const blobUrl = URL.createObjectURL(blob);
-    previewFrame.src = blobUrl;
-    previewLarge.src = blobUrl;
+    previewFrame.src = blobUrl; previewLarge.src = blobUrl;
     codeView.textContent = currentEmailHtml;
-    document.getElementById('placeholders-note').style.display = /%%IMAGE_\d+%%/.test(currentEmailHtml) ? 'block' : 'none';
-    document.getElementById('preview-url-mock').textContent = '\ud83d\udce7 ' + (ctaUrl || 'Email Preview');
+    document.getElementById('placeholders-note').style.display = /%%IMAGE_\d+%%/.test(currentEmailHtml)?'block':'none';
+    document.getElementById('preview-url-mock').textContent = '\ud83d\udce7 '+(ctaUrl||'Email Preview');
     switchTab('preview');
   }
-
-  function switchTab(tab) {
+  function switchTab(tab){
     const pw=document.getElementById('preview-wrap'),cw=document.getElementById('code-wrap');
     const tp=document.getElementById('tab-preview'),tc=document.getElementById('tab-code');
     if(tab==='preview'){pw.style.display='block';cw.classList.remove('visible');tp.classList.add('active');tc.classList.remove('active');}
@@ -437,7 +476,12 @@
       setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=orig;},2000);
     });
   }
-  function resetAll(){currentEmailHtml='';conversationHistory=[];outputPanel.style.display='none';inputPanel.style.display='block';revisionInput.value='';ctaUrlEl.value='';hideError();toggleOverlay(false);}
+  function resetAll(){
+    currentEmailHtml='';conversationHistory=[];
+    outputPanel.style.display='none';inputPanel.style.display='block';
+    revisionInput.value='';ctaUrlEl.value='';eventDetailsEl.value='';
+    eventBox.classList.remove('visible');hideError();toggleOverlay(false);
+  }
   function setLoading(show,text=''){loading.style.display=show?'block':'none';workspace.style.display=show?'none':'grid';if(text)loadingText.textContent=text;}
   function setLoadingText(t){loadingText.textContent=t;}
   function showError(msg){formError.textContent=msg;formError.style.display='block';}

@@ -6,7 +6,7 @@ export default async (req: Request, _context: Context) => {
   }
 
   try {
-    const { websiteUrl, ctaUrl, images, emailType, revisionRequest, conversationHistory } = await req.json();
+    const { websiteUrl, ctaUrl, eventDetails, images, emailType, revisionRequest, conversationHistory } = await req.json();
 
     if (!websiteUrl) {
       return new Response(
@@ -23,10 +23,9 @@ export default async (req: Request, _context: Context) => {
       );
     }
 
-    // CTA link: use explicit ctaUrl if provided, else fall back to websiteUrl
     const ctaLink = ctaUrl?.trim() || websiteUrl;
 
-    // 1. Scrape brand website (NOT the event/CTA URL)
+    // 1. Scrape brand website for colors/logo/tone
     let pageContent = "";
     try {
       const jinaUrl = `https://r.jina.ai/${websiteUrl}`;
@@ -86,10 +85,14 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markd
         { role: "user", content: `Revise the email: ${revisionRequest}\n\nReturn ONLY the complete updated HTML.` },
       ];
     } else {
+      const eventSection = eventDetails?.trim()
+        ? `\n\nEVENT DETAILS (use these for the email copy — dates, pricing, description etc.):\n${eventDetails.trim()}`
+        : "";
+
       messages = [
         {
           role: "user",
-          content: `${systemPrompt}\n\n---\n\nBRAND WEBSITE: ${websiteUrl}\nPURPOSE: ${emailType || "general promotional email"}\n\nWEBSITE CONTENT (extract brand from this):\n${contentSnippet || "No content scraped \u2014 use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA BUTTON LINK: ${ctaLink}\nUse this exact URL as the href for the main CTA button. Do NOT change or placeholder this URL.\n\nReturn ONLY the complete HTML.`,
+          content: `${systemPrompt}\n\n---\n\nBRAND WEBSITE: ${websiteUrl}\nEMAIL PURPOSE: ${emailType || "general promotional email"}${eventSection}\n\nBRAND WEBSITE CONTENT (extract colors, logo, tone from this):\n${contentSnippet || "No content scraped \u2014 use clean professional styling"}\n\nIMAGES:\n${imageSlots}\n\nCTA BUTTON LINK: ${ctaLink}\nUse this exact URL as the CTA href \u2014 do NOT change or placeholder it.\n\nReturn ONLY the complete HTML.`,
         },
       ];
     }
