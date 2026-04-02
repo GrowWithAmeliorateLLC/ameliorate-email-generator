@@ -32,9 +32,8 @@
     input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
     input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
-    /* CTA field */
     .cta-field input{border-color:rgba(201,226,101,.4);}
-    /* Event details box */
+    /* Event box */
     .event-box{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .event-box.visible{display:block;}
     .event-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
@@ -51,12 +50,19 @@
     .detected-label .spin{width:12px;height:12px;border:2px solid rgba(124,77,255,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:none;}
     .detected-label.loading .spin{display:inline-block;}
     .detected-thumbs{display:flex;flex-wrap:wrap;gap:8px;}
-    .thumb-item{position:relative;width:64px;height:48px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .15s;background:#eee;flex-shrink:0;}
+    /* Thumbnail with image */
+    .thumb-item{position:relative;width:64px;height:48px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .15s;background:#e8e2f0;flex-shrink:0;}
     .thumb-item:hover{border-color:var(--purple);transform:scale(1.05);}
     .thumb-item.selected{border-color:var(--lime);box-shadow:0 0 0 2px rgba(201,226,101,.4);}
     .thumb-item img{width:100%;height:100%;object-fit:cover;}
-    .thumb-check{position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--lime);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;}
+    .thumb-check{position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--lime);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
     .thumb-item.selected .thumb-check{display:flex;}
+    /* Text pill fallback — used when image can't load */
+    .thumb-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:rgba(124,77,255,.08);border:1.5px solid rgba(124,77,255,.2);border-radius:50px;cursor:pointer;transition:all .15s;font-size:11px;color:var(--purple);font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .thumb-pill:hover{background:rgba(124,77,255,.16);border-color:var(--purple);}
+    .thumb-pill.selected{background:rgba(201,226,101,.2);border-color:var(--lime);color:var(--ink);}
+    .thumb-pill .pill-icon{font-size:13px;flex-shrink:0;}
+    .thumb-pill .pill-label{overflow:hidden;text-overflow:ellipsis;}
     .detected-none{font-size:12px;color:var(--muted);font-style:italic;}
     .images-section{display:flex;flex-direction:column;gap:7px;}
     .image-row{display:flex;align-items:center;gap:7px;}
@@ -160,7 +166,7 @@
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">Used for brand colors, logo &amp; tone extraction</span>
+            <span class="field-hint">Used for brand colors, logo &amp; tone — must be the client's main website</span>
             <input type="url" id="website-url" placeholder="https://codeninjas.com/il-algonquin" autocomplete="off" />
           </div>
           <div class="detected-panel" id="detected-panel">
@@ -171,11 +177,9 @@
           <div class="section-label">Event / CTA</div>
           <div class="field cta-field">
             <label for="cta-url">Event or Booking URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-            <span class="field-hint">MyStudio, LineLeader, or any booking link — AI will try to extract event details automatically</span>
+            <span class="field-hint">MyStudio, LineLeader, any booking link — AI tries to extract event details automatically</span>
             <input type="url" id="cta-url" placeholder="https://cn.mystudio.io/e/?=…" autocomplete="off" />
           </div>
-
-          <!-- Auto-extracted event details -->
           <div class="event-box" id="event-box">
             <div class="event-box-header">
               <div class="event-box-label" id="event-box-label"><span class="spin"></span><span id="event-box-label-text">Reading event page…</span></div>
@@ -187,13 +191,13 @@
           <div class="section-label">Email Details</div>
           <div class="field">
             <label for="email-type">Email Purpose</label>
-            <span class="field-hint">Brief description if event details above don’t cover it</span>
+            <span class="field-hint">Brief description if event details above don't cover it</span>
             <textarea id="email-type" placeholder="e.g. Summer camp enrollment email for parents" rows="2"></textarea>
           </div>
 
           <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5)</span></div>
           <div class="field">
-            <span class="field-hint">Click detected images or paste URLs. Leave blank for placeholders.</span>
+            <span class="field-hint">Click detected images above or paste URLs. Leave blank for placeholders.</span>
             <div class="images-section" id="images-section">
               <div class="image-row">
                 <span class="img-label">IMG 1</span>
@@ -302,7 +306,7 @@
     brandScrapeTimer = setTimeout(() => scrapeImages(url), 800);
   });
 
-  // CTA URL → event detail extraction
+  // CTA URL → event extraction
   ctaUrlEl.addEventListener('input', () => {
     const url = ctaUrlEl.value.trim();
     if (eventScrapeTimer) clearTimeout(eventScrapeTimer);
@@ -317,18 +321,16 @@
     eventStatus.textContent = '';
     eventDetailsEl.value = '';
     eventDetailsEl.placeholder = 'Reading event details\u2026';
-
     try {
       const res = await fetch(`/api/scrape-event?url=${encodeURIComponent(url)}`);
       const data = await res.json();
       eventBoxLabel.classList.remove('loading');
-
       if (data.success && data.details) {
         eventDetailsEl.value = data.details;
-        eventBoxLabelText.textContent = 'Event details extracted \u2713 — edit if needed';
+        eventBoxLabelText.textContent = 'Event details extracted \u2713 \u2014 edit if needed';
         eventStatus.textContent = 'auto-filled';
       } else {
-        eventBoxLabelText.textContent = 'Could not read page — add details manually';
+        eventBoxLabelText.textContent = 'Could not read page \u2014 add details manually';
         eventStatus.textContent = data.reason === 'no_content' ? 'JS-only page' : '';
         eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week. Kids build and program their own robots.';
       }
@@ -350,16 +352,40 @@
       detectedLabel.classList.remove('loading');
       if (!data.images || data.images.length === 0) {
         detectedLabelText.textContent = 'No images detected';
-        detectedThumbs.innerHTML = '<span class="detected-none">None found</span>';
+        detectedThumbs.innerHTML = '<span class="detected-none">None found \u2014 paste URLs below manually</span>';
         return;
       }
       detectedLabelText.textContent = `${data.images.length} image${data.images.length>1?'s':''} detected \u2014 click to use`;
       data.images.forEach((img, idx) => {
-        const div = document.createElement('div');
-        div.className = 'thumb-item'; div.title = img.url;
-        div.innerHTML = `<img src="${img.url}" alt="img ${idx+1}" loading="lazy" onerror="this.closest('.thumb-item').style.display='none'" /><div class="thumb-check">\u2713</div>`;
-        div.addEventListener('click', () => toggleDetectedImage(div, img.url));
-        detectedThumbs.appendChild(div);
+        // Try thumbnail first; fall back to text pill if image fails
+        const wrapper = document.createElement('div');
+        wrapper.style.cssText = 'display:contents';
+
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb-item';
+        thumb.title = img.url;
+        thumb.dataset.url = img.url;
+
+        const imgEl = document.createElement('img');
+        imgEl.src = img.url;
+        imgEl.alt = `img ${idx + 1}`;
+        imgEl.loading = 'lazy';
+
+        const check = document.createElement('div');
+        check.className = 'thumb-check';
+        check.textContent = '\u2713';
+
+        // On error: replace thumb with a text pill
+        imgEl.onerror = () => {
+          thumb.remove();
+          const pill = makePill(img.url, idx);
+          detectedThumbs.appendChild(pill);
+        };
+
+        thumb.appendChild(imgEl);
+        thumb.appendChild(check);
+        thumb.addEventListener('click', () => toggleDetectedImage(thumb, img.url));
+        detectedThumbs.appendChild(thumb);
       });
     } catch {
       detectedLabel.classList.remove('loading');
@@ -367,18 +393,32 @@
     }
   }
 
-  function toggleDetectedImage(thumbEl, imgUrl) {
-    const isSelected = thumbEl.classList.contains('selected');
+  function makePill(imgUrl, idx) {
+    // Derive a short label from the URL filename
+    const filename = imgUrl.split('/').pop()?.split('?')[0] || `Image ${idx + 1}`;
+    const label = filename.length > 22 ? filename.substring(0, 20) + '\u2026' : filename;
+
+    const pill = document.createElement('div');
+    pill.className = 'thumb-pill';
+    pill.dataset.url = imgUrl;
+    pill.title = imgUrl;
+    pill.innerHTML = `<span class="pill-icon">\ud83d\uddbc\ufe0f</span><span class="pill-label">${label}</span>`;
+    pill.addEventListener('click', () => toggleDetectedImage(pill, imgUrl));
+    return pill;
+  }
+
+  function toggleDetectedImage(el, imgUrl) {
+    const isSelected = el.classList.contains('selected');
     if (isSelected) {
-      thumbEl.classList.remove('selected');
+      el.classList.remove('selected');
       const match = Array.from(imagesSection.querySelectorAll('.img-input')).find(inp => inp.value === imgUrl);
       if (match) match.value = '';
     } else {
-      thumbEl.classList.add('selected');
+      el.classList.add('selected');
       const empty = Array.from(imagesSection.querySelectorAll('.img-input')).find(inp => !inp.value.trim());
       if (empty) { empty.value = imgUrl; }
       else if (imageCount < MAX_IMAGES) { addImageRow(imgUrl); }
-      else { showToast('Max 5 images'); thumbEl.classList.remove('selected'); }
+      else { showToast('Max 5 images'); el.classList.remove('selected'); }
     }
   }
 
@@ -406,28 +446,22 @@
     setTimeout(() => setLoadingText('Writing your email\u2026'), 10000);
     try {
       const res = await fetch('/api/generate-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          websiteUrl: url,
-          ctaUrl: ctaUrlEl.value.trim(),
+          websiteUrl: url, ctaUrl: ctaUrlEl.value.trim(),
           eventDetails: eventDetailsEl.value.trim(),
-          images: getImages(),
-          emailType: emailTypeEl.value.trim(),
+          images: getImages(), emailType: emailTypeEl.value.trim(),
         }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { setLoading(false); showError(data.error || 'Generation failed.'); return; }
-      currentEmailHtml = data.emailHtml;
-      conversationHistory = data.conversationHistory || [];
-      setLoading(false);
-      renderEmail(ctaUrlEl.value.trim() || url);
+      currentEmailHtml = data.emailHtml; conversationHistory = data.conversationHistory || [];
+      setLoading(false); renderEmail(ctaUrlEl.value.trim() || url);
     } catch { setLoading(false); showError('Network error. Please try again.'); }
   });
 
   async function submitRevision() {
-    const request = revisionInput.value.trim();
-    if (!request) return;
+    const request = revisionInput.value.trim(); if (!request) return;
     reviseBtn.disabled = true;
     reviseBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Revising\u2026';
     try {
@@ -438,9 +472,7 @@
       const data = await res.json();
       if (!res.ok || data.error) { showToast('Revision failed \u2014 try again'); return; }
       currentEmailHtml = data.emailHtml; conversationHistory = data.conversationHistory || [];
-      revisionInput.value = '';
-      renderEmail(ctaUrlEl.value.trim() || websiteUrlEl.value.trim());
-      showToast('Email updated \u2713');
+      revisionInput.value = ''; renderEmail(ctaUrlEl.value.trim() || websiteUrlEl.value.trim()); showToast('Email updated \u2713');
     } catch { showToast('Network error'); }
     finally {
       reviseBtn.disabled = false;
@@ -451,8 +483,7 @@
 
   function renderEmail(ctaUrl) {
     inputPanel.style.display='none'; outputPanel.style.display='flex';
-    const blob = new Blob([currentEmailHtml],{type:'text/html'});
-    const blobUrl = URL.createObjectURL(blob);
+    const blobUrl = URL.createObjectURL(new Blob([currentEmailHtml],{type:'text/html'}));
     previewFrame.src = blobUrl; previewLarge.src = blobUrl;
     codeView.textContent = currentEmailHtml;
     document.getElementById('placeholders-note').style.display = /%%IMAGE_\d+%%/.test(currentEmailHtml)?'block':'none';
