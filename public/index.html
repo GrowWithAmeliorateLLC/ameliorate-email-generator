@@ -50,14 +50,13 @@
     .detected-label .spin{width:12px;height:12px;border:2px solid rgba(124,77,255,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:none;}
     .detected-label.loading .spin{display:inline-block;}
     .detected-thumbs{display:flex;flex-wrap:wrap;gap:8px;}
-    /* Thumbnail with image */
-    .thumb-item{position:relative;width:64px;height:48px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .15s;background:#e8e2f0;flex-shrink:0;}
+    .thumb-item{position:relative;width:72px;height:54px;border-radius:8px;overflow:hidden;border:2px solid transparent;cursor:pointer;transition:border-color .15s,transform .15s;background:#e8e2f0;flex-shrink:0;}
     .thumb-item:hover{border-color:var(--purple);transform:scale(1.05);}
     .thumb-item.selected{border-color:var(--lime);box-shadow:0 0 0 2px rgba(201,226,101,.4);}
-    .thumb-item img{width:100%;height:100%;object-fit:cover;}
+    .thumb-item img{width:100%;height:100%;object-fit:cover;display:block;}
     .thumb-check{position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--lime);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
     .thumb-item.selected .thumb-check{display:flex;}
-    /* Text pill fallback — used when image can't load */
+    /* Text pill fallback */
     .thumb-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:rgba(124,77,255,.08);border:1.5px solid rgba(124,77,255,.2);border-radius:50px;cursor:pointer;transition:all .15s;font-size:11px;color:var(--purple);font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .thumb-pill:hover{background:rgba(124,77,255,.16);border-color:var(--purple);}
     .thumb-pill.selected{background:rgba(201,226,101,.2);border-color:var(--lime);color:var(--ink);}
@@ -298,7 +297,6 @@
   const eventBoxLabelText = document.getElementById('event-box-label-text');
   const eventStatus    = document.getElementById('event-status');
 
-  // Brand URL → logo detection
   websiteUrlEl.addEventListener('input', () => {
     const url = websiteUrlEl.value.trim();
     if (brandScrapeTimer) clearTimeout(brandScrapeTimer);
@@ -306,7 +304,6 @@
     brandScrapeTimer = setTimeout(() => scrapeImages(url), 800);
   });
 
-  // CTA URL → event extraction
   ctaUrlEl.addEventListener('input', () => {
     const url = ctaUrlEl.value.trim();
     if (eventScrapeTimer) clearTimeout(eventScrapeTimer);
@@ -318,8 +315,7 @@
     eventBox.classList.add('visible');
     eventBoxLabel.classList.add('loading');
     eventBoxLabelText.textContent = 'Reading event page\u2026';
-    eventStatus.textContent = '';
-    eventDetailsEl.value = '';
+    eventStatus.textContent = ''; eventDetailsEl.value = '';
     eventDetailsEl.placeholder = 'Reading event details\u2026';
     try {
       const res = await fetch(`/api/scrape-event?url=${encodeURIComponent(url)}`);
@@ -332,7 +328,7 @@
       } else {
         eventBoxLabelText.textContent = 'Could not read page \u2014 add details manually';
         eventStatus.textContent = data.reason === 'no_content' ? 'JS-only page' : '';
-        eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week. Kids build and program their own robots.';
+        eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week.';
       }
     } catch {
       eventBoxLabel.classList.remove('loading');
@@ -357,10 +353,6 @@
       }
       detectedLabelText.textContent = `${data.images.length} image${data.images.length>1?'s':''} detected \u2014 click to use`;
       data.images.forEach((img, idx) => {
-        // Try thumbnail first; fall back to text pill if image fails
-        const wrapper = document.createElement('div');
-        wrapper.style.cssText = 'display:contents';
-
         const thumb = document.createElement('div');
         thumb.className = 'thumb-item';
         thumb.title = img.url;
@@ -370,12 +362,15 @@
         imgEl.src = img.url;
         imgEl.alt = `img ${idx + 1}`;
         imgEl.loading = 'lazy';
+        // KEY FIX: no-referrer bypasses hotlink protection on public images
+        imgEl.referrerPolicy = 'no-referrer';
+        imgEl.crossOrigin = 'anonymous';
 
         const check = document.createElement('div');
         check.className = 'thumb-check';
         check.textContent = '\u2713';
 
-        // On error: replace thumb with a text pill
+        // Fallback to text pill if image still fails
         imgEl.onerror = () => {
           thumb.remove();
           const pill = makePill(img.url, idx);
@@ -394,10 +389,8 @@
   }
 
   function makePill(imgUrl, idx) {
-    // Derive a short label from the URL filename
     const filename = imgUrl.split('/').pop()?.split('?')[0] || `Image ${idx + 1}`;
     const label = filename.length > 22 ? filename.substring(0, 20) + '\u2026' : filename;
-
     const pill = document.createElement('div');
     pill.className = 'thumb-pill';
     pill.dataset.url = imgUrl;
