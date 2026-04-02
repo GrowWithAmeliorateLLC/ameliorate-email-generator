@@ -1,5 +1,21 @@
 import type { Context } from "@netlify/functions";
 
+// Post-process generated HTML:
+// 1. Add referrerpolicy="no-referrer" to all <img> tags (bypasses hotlink protection in preview)
+// 2. Inject <meta name="referrer" content="no-referrer"> into <head>
+function injectReferrerPolicy(html: string): string {
+  // Add meta referrer to <head>
+  let result = html.replace(
+    /<head([^>]*)>/i,
+    '<head$1><meta name="referrer" content="no-referrer">'
+  );
+  // Add referrerpolicy attribute to every <img> tag that doesn't already have it
+  result = result.replace(/<img\b(?![^>]*referrerpolicy)([^>]*?)>/gi, (match) => {
+    return match.replace(/\/?>\s*$/, ' referrerpolicy="no-referrer">');
+  });
+  return result;
+}
+
 export default async (req: Request, _context: Context) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
@@ -86,7 +102,7 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markd
       ];
     } else {
       const eventSection = eventDetails?.trim()
-        ? `\n\nEVENT DETAILS (use these for the email copy — dates, pricing, description etc.):\n${eventDetails.trim()}`
+        ? `\n\nEVENT DETAILS (use these for the email copy \u2014 dates, pricing, description etc.):\n${eventDetails.trim()}`
         : "";
 
       messages = [
@@ -124,6 +140,9 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> to </html>. No explanation, no markd
     const claudeData = await claudeRes.json();
     let emailHtml: string = claudeData.content[0].text;
     emailHtml = emailHtml.replace(/^```html\n?/i, "").replace(/\n?```$/i, "").trim();
+
+    // 5. Post-process: inject referrer policy so images load in preview
+    emailHtml = injectReferrerPolicy(emailHtml);
 
     const updatedHistory = revisionRequest
       ? [
