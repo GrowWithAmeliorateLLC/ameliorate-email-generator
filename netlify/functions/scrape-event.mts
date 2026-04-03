@@ -1,6 +1,31 @@
 import type { Context } from "@netlify/functions";
 
-// Tries to extract event details from a URL (including JS-rendered pages via Jina)
+// Detect if scraped content is actually a login/auth wall
+function isAuthWall(text: string): boolean {
+  const lower = text.toLowerCase();
+  const authSignals = [
+    'sign in', 'log in', 'login', 'please sign', 'please log',
+    'create an account', 'forgot password', 'reset password',
+    'enter your email', 'enter your password', 'members only',
+    'access denied', 'unauthorized', 'authentication required',
+  ];
+  const signalCount = authSignals.filter(s => lower.includes(s)).length;
+  // Short content with auth signals = login wall
+  return signalCount >= 2 || (text.length < 300 && signalCount >= 1);
+}
+
+// Return a helpful pre-filled template based on the URL domain
+function getTemplate(url: string): string {
+  const u = url.toLowerCase();
+  if (u.includes('codeninjas') || u.includes('members.code')) {
+    return `Camp/Event name: \nDates: \nTime: \nAges: \nPrice: \nDescription: `;
+  }
+  if (u.includes('mystudio') || u.includes('lineleader') || u.includes('jackrabbit')) {
+    return `Event/Camp name: \nDates: \nTime: \nAges: \nPrice per session: \nDescription: `;
+  }
+  return `Event name: \nDate(s): \nTime: \nAge range: \nPrice: \nDescription: `;
+}
+
 export default async (req: Request, _context: Context) => {
   const { searchParams } = new URL(req.url);
   const url = searchParams.get("url")?.trim();
@@ -13,8 +38,9 @@ export default async (req: Request, _context: Context) => {
 
   const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY") ?? "";
   let pageText = "";
+  let fetchFailed = false;
 
-  // Try Jina first — it renders JS so works on MyStudio, LineLeader etc.
+  // Try Jina first (renders JS for MyStudio, LineLeader etc.)
   try {
     const jinaRes = await fetch(`https://r.jina.ai/${url}`, {
       headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "5" },
@@ -31,17 +57,38 @@ export default async (req: Request, _context: Context) => {
       const html = await res.text();
       pageText = html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
     } catch {
+      fetchFailed = true;
       pageText = "";
     }
   }
 
-  if (!pageText || pageText.length < 50) {
-    return new Response(JSON.stringify({ details: "", success: false, reason: "no_content" }), {
-      headers: { "Content-Type": "application/json" },
-    });
+  // Auth wall detection
+  if (!fetchFailed && pageText && isAuthWall(pageText)) {
+    return new Response(
+      JSON.stringify({
+        details: getTemplate(url),
+        success: false,
+        reason: "auth_required",
+        template: true,
+      }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   }
 
-  // Use Claude to extract clean event details from the scraped text
+  // No content at all
+  if (!pageText || pageText.length < 50) {
+    return new Response(
+      JSON.stringify({
+        details: getTemplate(url),
+        success: false,
+        reason: "no_content",
+        template: true,
+      }),
+      { headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Use Claude to extract clean event details
   try {
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -61,27 +108,31 @@ export default async (req: Request, _context: Context) => {
     });
 
     if (!claudeRes.ok) {
-      return new Response(JSON.stringify({ details: "", success: false, reason: "ai_failed" }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ details: getTemplate(url), success: false, reason: "ai_failed", template: true }),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
     const data = await claudeRes.json();
     const extracted = data.content[0].text.trim();
 
     if (extracted === "NO_EVENT" || extracted.length < 10) {
-      return new Response(JSON.stringify({ details: "", success: false, reason: "no_event" }), {
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ details: getTemplate(url), success: false, reason: "no_event", template: true }),
+        { headers: { "Content-Type": "application/json" } }
+      );
     }
 
-    return new Response(JSON.stringify({ details: extracted, success: true }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ details: extracted, success: true }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   } catch {
-    return new Response(JSON.stringify({ details: "", success: false, reason: "error" }), {
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ details: getTemplate(url), success: false, reason: "error", template: true }),
+      { headers: { "Content-Type": "application/json" } }
+    );
   }
 };
 
