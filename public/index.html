@@ -33,7 +33,6 @@
     input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
     .cta-field input{border-color:rgba(201,226,101,.4);}
-    /* Event box */
     .event-box{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .event-box.visible{display:block;}
     .event-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
@@ -43,7 +42,6 @@
     .event-status{font-size:10px;color:var(--muted);font-style:italic;}
     .event-box textarea{background:rgba(255,255,255,.7);border-color:rgba(124,77,255,.2);font-size:13px;min-height:80px;}
     .event-box textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,77,255,.12);}
-    /* Image detection */
     .detected-panel{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .detected-panel.visible{display:block;}
     .detected-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -56,8 +54,7 @@
     .thumb-item img{width:100%;height:100%;object-fit:cover;display:block;}
     .thumb-check{position:absolute;top:2px;right:2px;width:16px;height:16px;background:var(--lime);border-radius:50%;display:none;align-items:center;justify-content:center;font-size:9px;font-weight:700;}
     .thumb-item.selected .thumb-check{display:flex;}
-    /* Text pill fallback */
-    .thumb-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:rgba(124,77,255,.08);border:1.5px solid rgba(124,77,255,.2);border-radius:50px;cursor:pointer;transition:all .15s;font-size:11px;color:var(--purple);font-weight:600;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .thumb-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;background:rgba(124,77,255,.08);border:1.5px solid rgba(124,77,255,.2);border-radius:50px;cursor:pointer;transition:all .15s;font-size:11px;color:var(--purple);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
     .thumb-pill:hover{background:rgba(124,77,255,.16);border-color:var(--purple);}
     .thumb-pill.selected{background:rgba(201,226,101,.2);border-color:var(--lime);color:var(--ink);}
     .thumb-pill .pill-icon{font-size:13px;flex-shrink:0;}
@@ -161,11 +158,10 @@
     <div id="input-panel">
       <div class="card">
         <div class="form-grid">
-
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">Used for brand colors, logo &amp; tone — must be the client's main website</span>
+            <span class="field-hint">Used for brand colors, logo &amp; tone — must be the client’s main website</span>
             <input type="url" id="website-url" placeholder="https://codeninjas.com/il-algonquin" autocomplete="off" />
           </div>
           <div class="detected-panel" id="detected-panel">
@@ -190,7 +186,7 @@
           <div class="section-label">Email Details</div>
           <div class="field">
             <label for="email-type">Email Purpose</label>
-            <span class="field-hint">Brief description if event details above don't cover it</span>
+            <span class="field-hint">Brief description if event details above don’t cover it</span>
             <textarea id="email-type" placeholder="e.g. Summer camp enrollment email for parents" rows="2"></textarea>
           </div>
 
@@ -251,7 +247,7 @@
       <div class="revision-panel">
         <div class="revision-title"><span class="dot"></span>Want to change anything?</div>
         <div class="revision-row">
-          <textarea id="revision-input" placeholder="e.g. Make the button orange, swap hero to IMG 2, make tone more urgent, add a pricing section…"></textarea>
+          <textarea id="revision-input" placeholder="e.g. Make the button a different color, swap hero to IMG 2, make tone more urgent, add a pricing section, add a footer…"></textarea>
           <button class="btn-revise" id="revise-btn" onclick="submitRevision()">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
             Revise
@@ -286,7 +282,6 @@
   const codeView       = document.getElementById('code-view');
   const revisionInput  = document.getElementById('revision-input');
   const reviseBtn      = document.getElementById('revise-btn');
-  const addImgBtn      = document.getElementById('add-img-btn');
   const imagesSection  = document.getElementById('images-section');
   const detectedPanel  = document.getElementById('detected-panel');
   const detectedLabel  = document.getElementById('detected-label');
@@ -296,6 +291,8 @@
   const eventBoxLabel  = document.getElementById('event-box-label');
   const eventBoxLabelText = document.getElementById('event-box-label-text');
   const eventStatus    = document.getElementById('event-status');
+
+  function getAddImgBtn() { return document.getElementById('add-img-btn'); }
 
   websiteUrlEl.addEventListener('input', () => {
     const url = websiteUrlEl.value.trim();
@@ -354,31 +351,14 @@
       detectedLabelText.textContent = `${data.images.length} image${data.images.length>1?'s':''} detected \u2014 click to use`;
       data.images.forEach((img, idx) => {
         const thumb = document.createElement('div');
-        thumb.className = 'thumb-item';
-        thumb.title = img.url;
-        thumb.dataset.url = img.url;
-
+        thumb.className = 'thumb-item'; thumb.title = img.url; thumb.dataset.url = img.url;
         const imgEl = document.createElement('img');
-        imgEl.src = img.url;
-        imgEl.alt = `img ${idx + 1}`;
-        imgEl.loading = 'lazy';
-        // KEY FIX: no-referrer bypasses hotlink protection on public images
-        imgEl.referrerPolicy = 'no-referrer';
-        imgEl.crossOrigin = 'anonymous';
-
+        imgEl.src = img.url; imgEl.alt = `img ${idx+1}`; imgEl.loading = 'lazy';
+        imgEl.referrerPolicy = 'no-referrer'; imgEl.crossOrigin = 'anonymous';
         const check = document.createElement('div');
-        check.className = 'thumb-check';
-        check.textContent = '\u2713';
-
-        // Fallback to text pill if image still fails
-        imgEl.onerror = () => {
-          thumb.remove();
-          const pill = makePill(img.url, idx);
-          detectedThumbs.appendChild(pill);
-        };
-
-        thumb.appendChild(imgEl);
-        thumb.appendChild(check);
+        check.className = 'thumb-check'; check.textContent = '\u2713';
+        imgEl.onerror = () => { thumb.remove(); detectedThumbs.appendChild(makePill(img.url, idx)); };
+        thumb.appendChild(imgEl); thumb.appendChild(check);
         thumb.addEventListener('click', () => toggleDetectedImage(thumb, img.url));
         detectedThumbs.appendChild(thumb);
       });
@@ -389,12 +369,10 @@
   }
 
   function makePill(imgUrl, idx) {
-    const filename = imgUrl.split('/').pop()?.split('?')[0] || `Image ${idx + 1}`;
-    const label = filename.length > 22 ? filename.substring(0, 20) + '\u2026' : filename;
+    const filename = imgUrl.split('/').pop()?.split('?')[0] || `Image ${idx+1}`;
+    const label = filename.length > 22 ? filename.substring(0,20)+'\u2026' : filename;
     const pill = document.createElement('div');
-    pill.className = 'thumb-pill';
-    pill.dataset.url = imgUrl;
-    pill.title = imgUrl;
+    pill.className = 'thumb-pill'; pill.dataset.url = imgUrl; pill.title = imgUrl;
     pill.innerHTML = `<span class="pill-icon">\ud83d\uddbc\ufe0f</span><span class="pill-label">${label}</span>`;
     pill.addEventListener('click', () => toggleDetectedImage(pill, imgUrl));
     return pill;
@@ -415,19 +393,23 @@
     }
   }
 
-  addImgBtn.addEventListener('click', () => addImageRow(''));
+  document.getElementById('add-img-btn').addEventListener('click', () => addImageRow(''));
+
   function addImageRow(prefill) {
     if (imageCount >= MAX_IMAGES) return;
     imageCount++;
     const row = document.createElement('div'); row.className = 'image-row';
     row.innerHTML = `<span class="img-label">IMG ${imageCount}</span><input type="url" class="img-input" placeholder="https://\u2026" value="${prefill}" /><button class="remove-image-btn" onclick="removeImageRow(this)" title="Remove">\u00d7</button>`;
     imagesSection.appendChild(row);
-    if (imageCount >= MAX_IMAGES) addImgBtn.style.display = 'none';
+    if (imageCount >= MAX_IMAGES) getAddImgBtn().style.display = 'none';
   }
+
   function removeImageRow(btn) {
-    btn.closest('.image-row').remove(); imageCount--; addImgBtn.style.display = '';
+    btn.closest('.image-row').remove(); imageCount--;
+    getAddImgBtn().style.display = '';
     imagesSection.querySelectorAll('.image-row').forEach((r,i) => r.querySelector('.img-label').textContent = `IMG ${i+1}`);
   }
+
   function getImages() { return Array.from(imagesSection.querySelectorAll('.img-input')).map(inp => inp.value.trim()); }
 
   generateBtn.addEventListener('click', async () => {
@@ -483,6 +465,7 @@
     document.getElementById('preview-url-mock').textContent = '\ud83d\udce7 '+(ctaUrl||'Email Preview');
     switchTab('preview');
   }
+
   function switchTab(tab){
     const pw=document.getElementById('preview-wrap'),cw=document.getElementById('code-wrap');
     const tp=document.getElementById('tab-preview'),tc=document.getElementById('tab-code');
@@ -500,12 +483,24 @@
       setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML=orig;},2000);
     });
   }
+
   function resetAll(){
-    currentEmailHtml='';conversationHistory=[];
-    outputPanel.style.display='none';inputPanel.style.display='block';
-    revisionInput.value='';ctaUrlEl.value='';eventDetailsEl.value='';
-    eventBox.classList.remove('visible');hideError();toggleOverlay(false);
+    currentEmailHtml=''; conversationHistory=[];
+    outputPanel.style.display='none'; inputPanel.style.display='block';
+    // Clear all inputs
+    websiteUrlEl.value=''; ctaUrlEl.value='';
+    emailTypeEl.value=''; revisionInput.value='';
+    eventDetailsEl.value='';
+    // Reset image slots to one blank row
+    imageCount=1;
+    imagesSection.innerHTML=`<div class="image-row"><span class="img-label">IMG 1</span><input type="url" class="img-input" placeholder="https://\u2026" /><button class="add-image-btn" id="add-img-btn" title="Add" onclick="addImageRow('')">+</button></div>`;
+    // Clear detected panels
+    detectedPanel.classList.remove('visible');
+    detectedThumbs.innerHTML='';
+    eventBox.classList.remove('visible');
+    hideError(); toggleOverlay(false);
   }
+
   function setLoading(show,text=''){loading.style.display=show?'block':'none';workspace.style.display=show?'none':'grid';if(text)loadingText.textContent=text;}
   function setLoadingText(t){loadingText.textContent=t;}
   function showError(msg){formError.textContent=msg;formError.style.display='block';}
