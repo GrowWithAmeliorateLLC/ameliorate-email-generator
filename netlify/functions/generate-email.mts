@@ -15,92 +15,142 @@ function resolveUrl(src: string, base: URL): string {
   return `${base.origin}/${src}`;
 }
 
-function filterMeaningfulColors(hexList: string[]): string[] {
-  return [...new Set(hexList)].filter(hex => {
-    const h = hex.replace('#', '');
-    const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
-    const r = parseInt(full.slice(0, 2), 16);
-    const g = parseInt(full.slice(2, 4), 16);
-    const b = parseInt(full.slice(4, 6), 16);
-    const brightness = (r + g + b) / 3;
-    const isGray = Math.abs(r - g) < 20 && Math.abs(g - b) < 20 && Math.abs(r - b) < 20;
-    return brightness > 25 && brightness < 220 && !isGray;
-  });
+function isLayoutColor(hex: string): boolean {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const r = parseInt(full.slice(0, 2), 16);
+  const g = parseInt(full.slice(2, 4), 16);
+  const b = parseInt(full.slice(4, 6), 16);
+  const brightness = (r + g + b) / 3;
+  const isGray = Math.abs(r - g) < 22 && Math.abs(g - b) < 22 && Math.abs(r - b) < 22;
+  return brightness < 20 || brightness > 230 || isGray;
+}
+
+// Find the background-color of button/CTA selectors in CSS text
+function findButtonColor(cssText: string): string {
+  const btnPatterns = [
+    /\.btn[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /button[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /\.button[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /\[type=["']submit["']\][^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /\.cta[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /a\.btn[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /input\[type[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+  ];
+  for (const p of btnPatterns) {
+    const m = cssText.match(p);
+    if (m && !isLayoutColor(m[1])) return m[1];
+  }
+  return '';
+}
+
+// Find heading color
+function findHeadingColor(cssText: string): string {
+  const hPatterns = [
+    /\bh1\b[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\bh2\b[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\.heading[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\.headline[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\.title[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+  ];
+  for (const p of hPatterns) {
+    const m = cssText.match(p);
+    if (m && !isLayoutColor(m[1])) return m[1];
+  }
+  return '';
+}
+
+// Find primary/accent color from CSS variables
+function findCssVarColors(cssText: string): { primary: string; accent: string } {
+  const primaryPatterns = [
+    /--(?:color-)?primary(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--brand(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--main(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--theme(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+  ];
+  const accentPatterns = [
+    /--(?:color-)?(?:accent|secondary|highlight)(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--cta(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+  ];
+  let primary = '', accent = '';
+  for (const p of primaryPatterns) { const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { primary = m[1]; break; } }
+  for (const p of accentPatterns) { const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { accent = m[1]; break; } }
+  return { primary, accent };
+}
+
+// Most frequently used non-layout color in CSS (likely the primary brand color)
+function findMostUsedColor(cssText: string): string {
+  const allHex = cssText.match(/#[0-9a-fA-F]{6}\b/g) || [];
+  const counts: Record<string, number> = {};
+  for (const h of allHex) {
+    if (!isLayoutColor(h)) counts[h] = (counts[h] || 0) + 1;
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
 }
 
 async function extractBrandKit(rawHtml: string, baseUrl: string): Promise<{
-  colors: string[];
+  buttonColor: string;
+  headingColor: string;
+  primaryColor: string;
+  accentColor: string;
   fonts: string[];
   logoUrl: string;
   ogImage: string;
   brandName: string;
-  cssVarSnippet: string;
 }> {
   const base = new URL(baseUrl);
 
-  // --- GOOGLE FONTS detection from HTML ---
+  // Google Fonts from HTML
   const gFontsUrls = rawHtml.match(/fonts\.googleapis\.com\/css[^"'\s>]+/g) || [];
   const fonts: string[] = [];
   for (const u of gFontsUrls) {
-    const fams = u.match(/family=([^&"'\s]+)/g) || [];
-    for (const f of fams) {
+    for (const f of (u.match(/family=([^&"'\s]+)/g) || [])) {
       const name = decodeURIComponent(f.replace('family=', '').split(':')[0].replace(/\+/g, ' ')).trim();
       if (name && !fonts.includes(name)) fonts.push(name);
     }
   }
 
-  // --- FETCH EXTERNAL CSS (up to 3 stylesheets, skip fonts/icons) ---
-  const cssLinkMatches = rawHtml.match(/<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi) || [];
-  const cssUrls = cssLinkMatches
+  // Find linked CSS files (skip font/icon CDNs)
+  const cssUrls = (rawHtml.match(/<link[^>]+rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi) || [])
     .map(m => { const h = m.match(/href=["']([^"']+)["']/i); return h ? resolveUrl(h[1], base) : ''; })
-    .filter(u => u && !/font|google|gstatic|icon|awesome/i.test(u))
-    .slice(0, 3);
+    .filter(u => u && !/font|google|gstatic|icon|awesome|bootstrap/i.test(u))
+    .slice(0, 4);
 
-  // Inline <style> blocks
+  // Inline styles
   let cssText = (rawHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [])
     .map(s => s.replace(/<\/?style[^>]*>/gi, '')).join('\n');
 
-  // Fetch external CSS files in parallel
+  // Fetch external CSS in parallel
   const cssResults = await Promise.allSettled(
     cssUrls.map(url => fetch(url, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AmeliorateBot/1.0)' },
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(4000),
     }).then(r => r.text()))
   );
   for (const r of cssResults) {
     if (r.status === 'fulfilled') cssText += '\n' + r.value;
   }
 
-  // --- FONTS from CSS font-family declarations ---
-  const cssFontDecls = cssText.match(/font-family\s*:\s*['"]?([^;'"`,\n]+)/gi) || [];
-  for (const decl of cssFontDecls) {
+  // Fonts from CSS
+  for (const decl of (cssText.match(/font-family\s*:\s*['"]?([^;'"`,\n]+)/gi) || [])) {
     const name = decl.replace(/font-family\s*:\s*/i, '').replace(/['"]/g, '').split(',')[0].trim();
     if (name && name.length > 1 && name.length < 40 && !fonts.includes(name)
-      && !/inherit|initial|unset|sans-serif|serif|monospace|system-ui|cursive/i.test(name)) {
+      && !/inherit|initial|unset|sans-serif|serif|monospace|system-ui|cursive|Arial|Helvetica/i.test(name)) {
       fonts.push(name);
     }
   }
 
-  // --- COLORS: CSS custom properties (most reliable) ---
-  const cssVarMatches = cssText.match(/--[a-zA-Z0-9-]*(?:color|primary|secondary|accent|brand|main|bg|background|btn|button|cta|highlight)[a-zA-Z0-9-]*\s*:\s*(#[0-9a-fA-F]{3,6})/gi) || [];
-  const cssVarColors = cssVarMatches.map(m => { const h = m.match(/#[0-9a-fA-F]{3,6}/); return h ? h[0] : ''; }).filter(Boolean);
-  const cssVarSnippet = cssVarMatches.slice(0, 12).join('; ');
+  // Extract role-labeled colors
+  const btnColor = findButtonColor(cssText);
+  const headColor = findHeadingColor(cssText);
+  const { primary, accent } = findCssVarColors(cssText);
+  const mostUsed = findMostUsedColor(cssText);
 
-  // Colors from CSS property declarations
-  const propMatches = cssText.match(/(?:^|[{;])\s*(?:color|background(?:-color)?|border(?:-color)?|fill|stroke)\s*:\s*(#[0-9a-fA-F]{3,6})/gim) || [];
-  const propColors = propMatches.map(m => { const h = m.match(/#[0-9a-fA-F]{3,6}/); return h ? h[0] : ''; }).filter(Boolean);
-
-  // Fallback: hex values anywhere in HTML
-  const htmlColors = (rawHtml.match(/#[0-9A-Fa-f]{6}\b/g) || []);
-
-  const colors = filterMeaningfulColors([...cssVarColors, ...propColors, ...htmlColors]).slice(0, 12);
-
-  // --- LOGO ---
+  // Logo
   const logoPatterns = [
     /<img[^>]*(?:class|id|alt)=["'][^"']*logo[^"']*["'][^>]*src=["']([^"']+)["']/i,
     /<img[^>]*src=["']([^"']+)["'][^>]*(?:class|id|alt)=["'][^"']*logo[^"']*["']/i,
     /<img[^>]*src=["']([^"']*logo[^"']+)["']/i,
-    /<img[^>]*src=["']([^"']*brand[^"']+)["']/i,
   ];
   let logoUrl = '';
   for (const p of logoPatterns) {
@@ -108,17 +158,26 @@ async function extractBrandKit(rawHtml: string, baseUrl: string): Promise<{
     if (m) { logoUrl = resolveUrl(m[1], base); break; }
   }
 
-  // --- OG IMAGE ---
+  // OG image
   const ogMatch = rawHtml.match(/<meta[^>]+(?:property=["']og:image["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:image["'])/i);
   const ogImage = ogMatch ? resolveUrl(ogMatch[1] || ogMatch[2] || '', base) : '';
 
-  // --- BRAND NAME ---
+  // Brand name
   const ogNameMatch = rawHtml.match(/<meta[^>]+(?:property=["']og:site_name["'][^>]+content=["']([^"']+)["']|content=["']([^"']+)["'][^>]+property=["']og:site_name["'])/i);
   const titleMatch = rawHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
   const brandName = ((ogNameMatch ? (ogNameMatch[1] || ogNameMatch[2]) : titleMatch ? titleMatch[1] : '') || '')
-    .trim().split('|')[0].trim().split(' - ')[0].trim().split(' – ')[0].trim();
+    .trim().split(/[|–-]/)[0].trim();
 
-  return { colors, fonts: fonts.slice(0, 6), logoUrl, ogImage, brandName, cssVarSnippet };
+  return {
+    buttonColor: btnColor || primary || mostUsed,
+    headingColor: headColor || primary || mostUsed,
+    primaryColor: primary || btnColor || mostUsed,
+    accentColor: accent || btnColor,
+    fonts: fonts.slice(0, 5),
+    logoUrl,
+    ogImage,
+    brandName,
+  };
 }
 
 export default async (req: Request, _context: Context) => {
@@ -126,20 +185,15 @@ export default async (req: Request, _context: Context) => {
 
   try {
     const { websiteUrl, ctaUrl, eventDetails, images, emailType, revisionRequest, conversationHistory } = await req.json();
-
-    if (!websiteUrl) {
-      return new Response(JSON.stringify({ error: "Missing required field: websiteUrl" }), { status: 400, headers: { "Content-Type": "application/json" } });
-    }
+    if (!websiteUrl) return new Response(JSON.stringify({ error: "Missing websiteUrl" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
     const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY is not configured." }), { status: 500, headers: { "Content-Type": "application/json" } });
-    }
+    if (!anthropicKey) return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
 
     const ctaLink = ctaUrl?.trim() || websiteUrl;
     const currentYear = new Date().getFullYear();
 
-    // 1. Fetch Jina text + raw HTML in parallel
+    // Fetch Jina + raw HTML in parallel
     const [jinaResult, rawHtmlResult] = await Promise.allSettled([
       fetch(`https://r.jina.ai/${websiteUrl}`, {
         headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "4" },
@@ -154,69 +208,75 @@ export default async (req: Request, _context: Context) => {
     const pageContent = jinaResult.status === 'fulfilled' ? jinaResult.value : '';
     const rawHtml = rawHtmlResult.status === 'fulfilled' ? rawHtmlResult.value : '';
 
-    // 2. Extract full brand kit (also fetches CSS files)
-    const brandKit = rawHtml
+    // Extract brand kit (fetches CSS files)
+    const bk = rawHtml
       ? await extractBrandKit(rawHtml, websiteUrl)
-      : { colors: [], fonts: [], logoUrl: '', ogImage: '', brandName: '', cssVarSnippet: '' };
+      : { buttonColor: '', headingColor: '', primaryColor: '', accentColor: '', fonts: [], logoUrl: '', ogImage: '', brandName: '' };
 
     const contentSnippet = pageContent.substring(0, 2500);
 
-    // 3. Image slots — auto-fill OG image if nothing provided
+    // Auto-fill OG image if no images given
     let resolvedImages = images && images.length > 0 ? [...images] : [];
-    if (resolvedImages.length === 0 && brandKit.ogImage) resolvedImages = [brandKit.ogImage];
+    if (resolvedImages.length === 0 && bk.ogImage) resolvedImages = [bk.ogImage];
 
     const imageSlots = resolvedImages.length > 0
       ? resolvedImages.map((url: string, i: number) =>
           url.trim() ? `IMAGE_${i + 1}: ${url.trim()}` : `IMAGE_${i + 1}: %%IMAGE_${i + 1}%%`
         ).join("\n")
-      : [1, 2, 3].map(i => `IMAGE_${i}: %%IMAGE_${i}%%`).join("\n");
+      : [`IMAGE_1: %%IMAGE_1%%`];
 
-    // 4. Build prompt
     const base = new URL(websiteUrl);
 
+    // Build explicit color instructions with labeled roles
+    const colorLines = [
+      bk.buttonColor  ? `  CTA button background : ${bk.buttonColor}  ← USE THIS for the CTA button` : null,
+      bk.headingColor ? `  Headline color        : ${bk.headingColor}  ← USE THIS for h1/h2 headings` : null,
+      bk.primaryColor && bk.primaryColor !== bk.buttonColor && bk.primaryColor !== bk.headingColor
+        ? `  Primary brand color   : ${bk.primaryColor}` : null,
+      bk.accentColor  && bk.accentColor !== bk.buttonColor
+        ? `  Accent color          : ${bk.accentColor}` : null,
+    ].filter(Boolean).join('\n');
+
     const brandSection = [
-      `EXTRACTED BRAND KIT — apply ALL of these precisely:`,
-      `  Business name : ${brandKit.brandName || base.hostname}`,
-      `  Logo URL      : ${brandKit.logoUrl || '(none — use business name as styled text header)'}`,
-      `  Brand colors  : ${brandKit.colors.length ? brandKit.colors.join(', ') : '(none extracted — infer carefully from website content or use dark navy + white)'}`,
-      `  CSS color vars: ${brandKit.cssVarSnippet || '(none)'}`,
-      `  Fonts on site : ${brandKit.fonts.length ? brandKit.fonts.join(', ') : '(none — use Arial, Helvetica, sans-serif)'}`,
-      ``,
-      `CRITICAL COLOR RULES:`,
-      `  - You MUST use the brand colors listed above for buttons, headlines, accents`,
-      `  - NEVER use purple, orange, or teal unless they appear in the color list above`,
-      `  - If color list is empty, default to dark charcoal (#222) headers + white background — do NOT invent colors`,
+      `BRAND KIT — follow these EXACTLY, no substitutions:`,
+      `  Business name : ${bk.brandName || base.hostname}`,
+      `  Logo URL      : ${bk.logoUrl || '(none found — render business name as large bold text)'}`,
+      colorLines || `  Colors        : (none extracted — use dark charcoal #1a1a1a headers, white background, NO purple)`,
+      `  Site fonts    : ${bk.fonts.length ? bk.fonts.join(', ') : 'none detected'}`,
     ].join('\n');
 
-    const systemPrompt = `You are an expert HTML email designer. Create a beautiful, on-brand, mobile-first HTML email for a youth enrichment or kids activity business.
+    const systemPrompt = `You are an expert HTML email designer. Build a beautiful, on-brand, mobile-first HTML email.
 
-CURRENT YEAR: ${currentYear}. Use ${currentYear} in all date references — never use 2024 or any past year.
+CURRENT YEAR: ${currentYear}. Use only ${currentYear} for dates — never 2024 or earlier.
 
 ${brandSection}
 
+ABSOLUTE COLOR RULE: You MUST use the exact hex colors listed above. 
+NEVER use purple (#7c4dff or any purple), NEVER use orange unless it's in the brand kit.
+If no colors were extracted, use #1a1a1a for headings and a neutral dark button. Do not invent colors.
+
 EMAIL RULES:
-- MOBILE-FIRST: single column, min 16px body text, CTA button min 48px tall and full-width on mobile
-- Max 600px wide, inline CSS only (no <style> tags — stripped by email clients)
+- Mobile-first, single column, 600px max width
+- Inline CSS only — no <style> tags (stripped by email clients)
 - Table-based layout for email client compatibility
-- Set background-color on BOTH <td> AND child element
-- Images: alt text + width="100%" + max-width inline + referrerpolicy="no-referrer"
-- Font in email: Arial, Helvetica, sans-serif (web fonts don't render in email clients)
+- background-color must be set on both the <td> AND the child element
+- Images: width="100%", max-width inline, alt text, referrerpolicy="no-referrer"
+- Body font: Arial, Helvetica, sans-serif
 - Tone: warm, parent-friendly, action-oriented
 
-STRUCTURE (in this exact order):
-1. Header — <img> using the Logo URL above; if no logo, render business name as large bold centered text
-2. Hero — IMAGE_1 linked to CTA URL, opens in new window
-3. Headline — benefit-first, use primary brand color
-4. Body — 2–3 short paragraphs, conversational
-5. CTA button — table-based, full-width, brand color background, white text, href="${ctaLink}", target="_blank"
-6. NO footer unless the user explicitly requests one
+EXACT STRUCTURE — follow this order:
+1. Header row — logo <img> if Logo URL exists above; otherwise business name as centered bold text
+2. Hero row — IMAGE_1, linked to the CTA URL, target="_blank"
+3. Headline — short, punchy, benefit-first; color = headline color above
+4. Body — 2–3 short paragraphs max
+5. CTA button — full-width table button, background = button color above, white bold text, href="${ctaLink}", target="_blank"
+6. *** NO FOOTER — do not add any footer, copyright line, address, or unsubscribe text ***
 
-ALL <a> tags: target="_blank" rel="noopener noreferrer"
+All <a> tags must have target="_blank" rel="noopener noreferrer".
 
-OUTPUT: Complete HTML only. <!DOCTYPE html> through </html>. No markdown fences, no explanation.`;
+Respond with ONLY the complete HTML document. No markdown fences, no explanation, no preamble.`;
 
     let messages: any[];
-
     if (revisionRequest && conversationHistory) {
       messages = [
         ...conversationHistory,
@@ -224,16 +284,13 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> through </html>. No markdown fences,
       ];
     } else {
       const eventSection = eventDetails?.trim()
-        ? `\n\nEVENT DETAILS (use for copy — dates, price, description):\n${eventDetails.trim()}`
-        : "";
-
+        ? `\n\nEVENT DETAILS (use for email copy):\n${eventDetails.trim()}` : "";
       messages = [{
         role: "user",
-        content: `${systemPrompt}\n\n---\n\nBRAND WEBSITE: ${websiteUrl}\nEMAIL PURPOSE: ${emailType || "general promotional email"}${eventSection}\n\nWEBSITE CONTENT (additional brand context):\n${contentSnippet || "Could not scrape — rely entirely on the extracted brand kit above"}\n\nIMAGE SLOTS:\n${imageSlots}\n\nReturn ONLY the complete HTML.`,
+        content: `${systemPrompt}\n\n---\n\nBRAND WEBSITE: ${websiteUrl}\nEMAIL PURPOSE: ${emailType || "general promotional email"}${eventSection}\n\nWEBSITE CONTENT:\n${contentSnippet || "Could not scrape — use brand kit above only"}\n\nIMAGE SLOTS:\n${imageSlots}\n\nReturn ONLY the complete HTML.`,
       }];
     }
 
-    // 5. Call Claude Haiku
     const claudeRes = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
@@ -242,10 +299,7 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> through </html>. No markdown fences,
 
     if (!claudeRes.ok) {
       const errData = await claudeRes.json().catch(() => null);
-      return new Response(
-        JSON.stringify({ error: `AI failed (${claudeRes.status}): ${errData ? JSON.stringify(errData) : 'unknown'}` }),
-        { status: 500, headers: { "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: `AI failed: ${errData ? JSON.stringify(errData) : claudeRes.status}` }), { status: 500, headers: { "Content-Type": "application/json" } });
     }
 
     const claudeData = await claudeRes.json();
@@ -260,7 +314,7 @@ OUTPUT: Complete HTML only. <!DOCTYPE html> through </html>. No markdown fences,
     return new Response(
       JSON.stringify({
         success: true, emailHtml, conversationHistory: updatedHistory,
-        brandKit: { logoUrl: brandKit.logoUrl, ogImage: brandKit.ogImage, colors: brandKit.colors, fonts: brandKit.fonts, brandName: brandKit.brandName },
+        brandKit: { logoUrl: bk.logoUrl, ogImage: bk.ogImage, buttonColor: bk.buttonColor, headingColor: bk.headingColor, fonts: bk.fonts, brandName: bk.brandName },
       }),
       { headers: { "Content-Type": "application/json" } }
     );
