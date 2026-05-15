@@ -32,16 +32,6 @@
     input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
     input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
-    .cta-field input{border-color:rgba(201,226,101,.4);}
-    .event-box{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
-    .event-box.visible{display:block;}
-    .event-box-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-    .event-box-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);display:flex;align-items:center;gap:6px;}
-    .event-box-label .spin{width:11px;height:11px;border:2px solid rgba(124,77,255,.3);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;display:none;}
-    .event-box-label.loading .spin{display:inline-block;}
-    .event-status{font-size:10px;color:var(--muted);font-style:italic;}
-    .event-box textarea{background:rgba(255,255,255,.7);border-color:rgba(124,77,255,.2);font-size:13px;min-height:100px;}
-    .event-box textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(124,77,255,.12);}
     .detected-panel{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .detected-panel.visible{display:block;}
     .detected-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -145,7 +135,7 @@
 <main>
   <div class="hero">
     <h1>Build <span class="gradient-text">On-Brand Emails</span><br />in seconds.</h1>
-    <p>Drop a brand URL + event/booking link — AI pulls the brand kit and event details automatically.</p>
+    <p>Drop a brand URL — AI extracts the brand kit and builds an on-brand email.</p>
   </div>
 
   <div id="loading">
@@ -161,33 +151,19 @@
           <div class="section-label">Brand Source</div>
           <div class="field">
             <label for="website-url">Client Website URL</label>
-            <span class="field-hint">Used for brand colors, logo &amp; tone — must be the client’s main website</span>
-            <input type="url" id="website-url" placeholder="https://codeninjas.com/il-algonquin" autocomplete="off" />
+            <span class="field-hint">Used for brand colors, logo, images &amp; tone — paste the page you want the email to link to</span>
+            <input type="url" id="website-url" placeholder="https://your-clients-website.com/page" autocomplete="off" />
           </div>
           <div class="detected-panel" id="detected-panel">
             <div class="detected-label" id="detected-label"><span class="spin"></span><span id="detected-label-text">Detecting images…</span></div>
             <div class="detected-thumbs" id="detected-thumbs"></div>
           </div>
 
-          <div class="section-label">Event / CTA</div>
-          <div class="field cta-field">
-            <label for="cta-url">Event or Booking URL <span style="font-weight:400;text-transform:none;letter-spacing:0;">(optional)</span></label>
-            <span class="field-hint">MyStudio, LineLeader, any booking link — AI tries to extract event details automatically</span>
-            <input type="url" id="cta-url" placeholder="https://cn.mystudio.io/e/?=…" autocomplete="off" />
-          </div>
-          <div class="event-box" id="event-box">
-            <div class="event-box-header">
-              <div class="event-box-label" id="event-box-label"><span class="spin"></span><span id="event-box-label-text">Reading event page…</span></div>
-              <span class="event-status" id="event-status"></span>
-            </div>
-            <textarea id="event-details" placeholder="Event details will appear here — edit as needed before generating…"></textarea>
-          </div>
-
           <div class="section-label">Email Details</div>
           <div class="field">
             <label for="email-type">Email Purpose</label>
-            <span class="field-hint">Brief description if event details above don’t cover it</span>
-            <textarea id="email-type" placeholder="e.g. Summer camp enrollment email for parents" rows="2"></textarea>
+            <span class="field-hint">What's the email about? Be specific — campaign goal, audience, any deadlines.</span>
+            <textarea id="email-type" placeholder="e.g. Summer enrollment email for parents of K–5 students. Filling-fast urgency. Locations in Charlotte and Fort Mill." rows="3"></textarea>
           </div>
 
           <div class="section-label">Images <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;">(up to 5)</span></div>
@@ -264,11 +240,9 @@
 <script>
   let currentEmailHtml = '', conversationHistory = [], imageCount = 1;
   const MAX_IMAGES = 5;
-  let brandScrapeTimer = null, eventScrapeTimer = null;
+  let brandScrapeTimer = null;
 
   const websiteUrlEl   = document.getElementById('website-url');
-  const ctaUrlEl       = document.getElementById('cta-url');
-  const eventDetailsEl = document.getElementById('event-details');
   const emailTypeEl    = document.getElementById('email-type');
   const generateBtn    = document.getElementById('generate-btn');
   const formError      = document.getElementById('form-error');
@@ -287,10 +261,6 @@
   const detectedLabel  = document.getElementById('detected-label');
   const detectedLabelText = document.getElementById('detected-label-text');
   const detectedThumbs = document.getElementById('detected-thumbs');
-  const eventBox       = document.getElementById('event-box');
-  const eventBoxLabel  = document.getElementById('event-box-label');
-  const eventBoxLabelText = document.getElementById('event-box-label-text');
-  const eventStatus    = document.getElementById('event-status');
 
   function getAddImgBtn() { return document.getElementById('add-img-btn'); }
 
@@ -300,50 +270,6 @@
     if (!url.startsWith('http')) { detectedPanel.classList.remove('visible'); return; }
     brandScrapeTimer = setTimeout(() => scrapeImages(url), 800);
   });
-
-  ctaUrlEl.addEventListener('input', () => {
-    const url = ctaUrlEl.value.trim();
-    if (eventScrapeTimer) clearTimeout(eventScrapeTimer);
-    if (!url.startsWith('http')) { eventBox.classList.remove('visible'); return; }
-    eventScrapeTimer = setTimeout(() => scrapeEvent(url), 900);
-  });
-
-  async function scrapeEvent(url) {
-    eventBox.classList.add('visible');
-    eventBoxLabel.classList.add('loading');
-    eventBoxLabelText.textContent = 'Reading event page\u2026';
-    eventStatus.textContent = ''; eventDetailsEl.value = '';
-    eventDetailsEl.placeholder = 'Reading event details\u2026';
-    try {
-      const res = await fetch(`/api/scrape-event?url=${encodeURIComponent(url)}`);
-      const data = await res.json();
-      eventBoxLabel.classList.remove('loading');
-      if (data.success && data.details) {
-        // Successfully extracted
-        eventDetailsEl.value = data.details;
-        eventBoxLabelText.textContent = 'Event details extracted \u2713 \u2014 edit if needed';
-        eventStatus.textContent = 'auto-filled';
-      } else if (data.template && data.details) {
-        // Auth wall or JS-only page \u2014 pre-fill structured template
-        eventDetailsEl.value = data.details;
-        if (data.reason === 'auth_required') {
-          eventBoxLabelText.textContent = '\ud83d\udd12 Login-protected page \u2014 fill in the details below';
-        } else {
-          eventBoxLabelText.textContent = 'Page not readable \u2014 fill in the details below';
-        }
-        eventStatus.textContent = 'manual entry';
-        setTimeout(() => { eventDetailsEl.focus(); eventDetailsEl.select(); }, 100);
-      } else {
-        eventBoxLabelText.textContent = 'Could not read page \u2014 add details manually';
-        eventStatus.textContent = '';
-        eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week.';
-      }
-    } catch {
-      eventBoxLabel.classList.remove('loading');
-      eventBoxLabelText.textContent = 'Add event details manually';
-      eventDetailsEl.placeholder = 'e.g. Lego Robotics Summer Camp, ages 7\u201313, June 16\u201320, $249/week.';
-    }
-  }
 
   async function scrapeImages(url) {
     detectedPanel.classList.add('visible');
@@ -434,15 +360,15 @@
       const res = await fetch('/api/generate-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          websiteUrl: url, ctaUrl: ctaUrlEl.value.trim(),
-          eventDetails: eventDetailsEl.value.trim(),
-          images: getImages(), emailType: emailTypeEl.value.trim(),
+          websiteUrl: url,
+          images: getImages(),
+          emailType: emailTypeEl.value.trim(),
         }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { setLoading(false); showError(data.error || 'Generation failed.'); return; }
       currentEmailHtml = data.emailHtml; conversationHistory = data.conversationHistory || [];
-      setLoading(false); renderEmail(ctaUrlEl.value.trim() || url);
+      setLoading(false); renderEmail(url);
     } catch { setLoading(false); showError('Network error. Please try again.'); }
   });
 
@@ -458,7 +384,7 @@
       const data = await res.json();
       if (!res.ok || data.error) { showToast('Revision failed \u2014 try again'); return; }
       currentEmailHtml = data.emailHtml; conversationHistory = data.conversationHistory || [];
-      revisionInput.value = ''; renderEmail(ctaUrlEl.value.trim() || websiteUrlEl.value.trim()); showToast('Email updated \u2713');
+      revisionInput.value = ''; renderEmail(websiteUrlEl.value.trim()); showToast('Email updated \u2713');
     } catch { showToast('Network error'); }
     finally {
       reviseBtn.disabled = false;
@@ -498,14 +424,12 @@
   function resetAll(){
     currentEmailHtml=''; conversationHistory=[];
     outputPanel.style.display='none'; inputPanel.style.display='block';
-    websiteUrlEl.value=''; ctaUrlEl.value='';
+    websiteUrlEl.value='';
     emailTypeEl.value=''; revisionInput.value='';
-    eventDetailsEl.value='';
     imageCount=1;
     imagesSection.innerHTML=`<div class="image-row"><span class="img-label">IMG 1</span><input type="url" class="img-input" placeholder="https://\u2026" /><button class="add-image-btn" id="add-img-btn" title="Add" onclick="addImageRow('')">+</button></div>`;
     detectedPanel.classList.remove('visible');
     detectedThumbs.innerHTML='';
-    eventBox.classList.remove('visible');
     hideError(); toggleOverlay(false);
   }
 

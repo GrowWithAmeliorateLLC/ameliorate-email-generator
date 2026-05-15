@@ -21,6 +21,19 @@ function isLayoutColor(hex: string): boolean {
   return brightness < 20 || brightness > 228 || isGray;
 }
 
+// HTML integrity check — confirms email is structurally complete before delivery
+function verifyHtmlIntegrity(html: string): { ok: boolean; issues: string[] } {
+  const issues: string[] = [];
+  if (!/<!DOCTYPE html>/i.test(html)) issues.push('missing DOCTYPE');
+  if (!/<html[\s>]/i.test(html)) issues.push('missing <html>');
+  if (!/<\/html>/i.test(html)) issues.push('missing </html>');
+  if (!/<body[\s>]/i.test(html)) issues.push('missing <body>');
+  if (!/<\/body>/i.test(html)) issues.push('missing </body>');
+  // Check for unfilled placeholders that shouldn't be in output
+  if (/\{\{[A-Z_]+\}\}/.test(html)) issues.push('unfilled {{TEMPLATE}} placeholder');
+  return { ok: issues.length === 0, issues };
+}
+
 // ─── Vision Color Extraction ─────────────────────────────────────────────────────────────────
 
 async function extractColorsFromScreenshot(websiteUrl: string, ogImageUrl: string, anthropicKey: string): Promise<{
@@ -103,7 +116,7 @@ async function extractColorsFromScreenshot(websiteUrl: string, ogImageUrl: strin
   }
 }
 
-// ─── CSS/HTML Brand Extraction ───────────────────────────────────────────────────────────────────
+// ─── CSS/HTML Brand Extraction (expanded patterns) ──────────────────────────────────────────
 
 async function extractBrandKitFromHtml(rawHtml: string, baseUrl: string): Promise<{
   buttonColor: string; headingColor: string; primaryColor: string; accentColor: string;
@@ -138,22 +151,47 @@ async function extractBrandKitFromHtml(rawHtml: string, baseUrl: string): Promis
     /\.btn[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
     /button[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
     /\.cta[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /\.primary[^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /\[class\*=["']btn["']\][^{,]*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
   ]) { const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { buttonColor = m[1]; break; } }
   let headingColor = '';
   for (const p of [
     /\bh1\b[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
     /\bh2\b[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\.heading[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
+    /\.title[^{,]*\{[^}]*(?:^|;)\s*color\s*:\s*(#[0-9a-fA-F]{3,6})/im,
   ]) { const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { headingColor = m[1]; break; } }
+  // Expanded CSS variable patterns — catches more naming conventions including --theme-*, --site-*, --color-*
   let primaryColor = '', accentColor = '';
-  for (const p of [/--(?:color-)?primary(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i, /--brand(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i]) {
+  for (const p of [
+    /--(?:color-)?primary(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--brand(?:-color|-primary)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--theme(?:-primary|-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--site(?:-primary|-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--color-(?:1|main|key)\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--main(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+  ]) {
     const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { primaryColor = m[1]; break; }
   }
-  for (const p of [/--(?:color-)?accent(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i, /--secondary(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i]) {
+  for (const p of [
+    /--(?:color-)?accent(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--secondary(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--brand-secondary\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--theme-accent\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--color-2\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+    /--highlight(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i,
+  ]) {
     const m = cssText.match(p); if (m && !isLayoutColor(m[1])) { accentColor = m[1]; break; }
   }
   const counts: Record<string, number> = {};
   for (const h of (cssText.match(/#[0-9a-fA-F]{6}\b/g) || [])) { if (!isLayoutColor(h)) counts[h] = (counts[h] || 0) + 1; }
   const mostUsed = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  // Try Tailwind-style hard-coded colors in className attributes (bg-blue-600 → look up adjacent inline styles)
+  // and inline style attributes on header/nav elements as a tertiary signal
+  if (!primaryColor) {
+    const headerStyleMatch = rawHtml.match(/<(?:header|nav)[^>]+style=["'][^"']*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i);
+    if (headerStyleMatch && !isLayoutColor(headerStyleMatch[1])) primaryColor = headerStyleMatch[1];
+  }
   let logoUrl = '';
   for (const p of [
     /<img[^>]*(?:class|id|alt)=["'][^"']*logo[^"']*["'][^>]*src=["']([^"']+)["']/i,
@@ -295,6 +333,8 @@ function assembleEmail(headerHtml: string, sections: any[], colors: Colors, ctaU
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="referrer" content="no-referrer" />
 <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light only" />
 <title>Email</title>
 </head>
 <body style="margin:0;padding:0;background-color:#edf2f7;font-family:Arial,Helvetica,sans-serif;">
@@ -310,21 +350,28 @@ function assembleEmail(headerHtml: string, sections: any[], colors: Colors, ctaU
 </html>`;
 }
 
-// ─── Section Prompt (improved rules) ──────────────────────────────────────────────────────────────
+// ─── Section Prompt (tightened with skill rules) ──────────────────────────────────────────────────
 
-function buildSectionPrompt(bk: any, colors: Colors, ctaLink: string, contentSnippet: string, eventDetails: string, emailType: string, imageSlots: string, currentYear: number): string {
-  return `You are building a structured marketing email. Return ONLY a valid JSON object \u2014 no explanation, no markdown.
+function buildSectionPrompt(bk: any, colors: Colors, ctaLink: string, contentSnippet: string, emailType: string, imageSlots: string, currentYear: number): string {
+  return `You are building a structured marketing email for ${bk.brandName || 'this client'}. Return ONLY a valid JSON object \u2014 no explanation, no markdown.
 
 BRAND:
   Name: ${bk.brandName || 'the client'}
   Button color: ${colors.button} \u2014 use EXACTLY this for CTA buttons and card accent bars
   Heading color: ${colors.heading} \u2014 use EXACTLY this for h1/h2 text
   Primary color: ${colors.primary} \u2014 use EXACTLY this for section labels, borders, accents
-  Logo: ${bk.logoUrl || '(none)'}
+  Logo: ${bk.logoUrl || '(none \u2014 brand name will be used in header)'}
 
 CURRENT YEAR: ${currentYear}
 
 OUTPUT FORMAT: { "sections": [ ...section objects... ] }
+
+VOICE RULES (apply across all sections):
+- Match the audience: if it's a kids/family brand, write to PARENTS, not children
+- Outcomes over features: "build real confidence" beats "30 hours of instruction"
+- Specific over vague: "filling fast \u2014 3 spots left for June 8" beats "limited time"
+- Conversational but credible \u2014 avoid jargon, avoid hype
+- One primary CTA per email; secondary text links are fine
 
 SECTION TYPES:
 
@@ -334,7 +381,8 @@ SECTION TYPES:
 
 { "type": "hero", "headline": "...", "subtext": "...", "image_url": "URL_OR_EMPTY_STRING", "image_alt": "...", "cta_text": "..." }
   \u2192 ALWAYS include. ALWAYS use IMAGE_1 from slots if available \u2014 never leave image_url empty when images are provided.
-  \u2192 cta_text should be action-oriented: "Enroll Now", "Register Today", "Book Your Spot".
+  \u2192 Headline: outcome-focused, not feature-focused. "Raise the score. Build real confidence." beats "30-hour SAT prep program."
+  \u2192 cta_text: action-verb-first. "Reserve Your Week", "Schedule a Free Consult", "Get Started Today".
 
 { "type": "photo", "image_url": "URL", "alt": "...", "linked": true }
   \u2192 Full-width image break. Only if IMAGE_2+ is available.
@@ -366,12 +414,15 @@ SECTION TYPES:
 { "type": "proof", "stat": "SHORT_STAT_ONLY", "quote": "...", "attribution": "..." }
   \u2192 stat MUST be a SHORT value: number, rating, or %. e.g. "500+", "4.9\u2605", "98%". NEVER a full sentence.
   \u2192 If no short stat exists, omit stat entirely and use only quote + attribution.
+  \u2192 Specific testimonials beat generic ones: "210-point SAT increase" beats "really helped my child".
 
 { "type": "urgency", "headline": "...", "body": "...", "code": "PROMO_CODE" }
   \u2192 Orange callout box. For enrollment deadlines, limited spots, or promo codes.
+  \u2192 Be specific. "June 8 and June 15 weeks nearly full" beats "limited spots available".
 
 { "type": "cta", "headline": "...", "body": "...", "button_text": "...", "button_url": "..." }
-  \u2192 ALWAYS the LAST section. Strong action text: "Enroll Now", "Book Your Spot".
+  \u2192 ALWAYS the LAST section. Action-verb-first button text.
+  \u2192 button_url should match the user's provided URL. Do NOT invent or modify the URL.
 
 { "type": "infostrip", "items": [{"icon": "EMOJI", "text": "..."}] }
   \u2192 Key logistics row: date, time, location, age range, spots remaining.
@@ -387,11 +438,15 @@ SECTION ORDER:
 
 BADGE TYPES: "status"=red (Filling Fast/New), "audience"=gray (Ages/Grades), "price"=yellow ($amounts), "format"=blue (Half Day/Virtual)
 
+TECHNICAL RULES (already applied by post-processor, do NOT include in JSON):
+- All links open in new tab with rel="noopener noreferrer" \u2014 handled automatically
+- All images have referrerpolicy="no-referrer" \u2014 handled automatically
+- Single primary CTA pattern enforced \u2014 omit card CTAs when same URL is reused
+
 IMAGE SLOTS \u2014 use IMAGE_1 in hero.image_url:
 ${imageSlots}
 
 EMAIL PURPOSE: ${emailType || 'general promotional email'}
-${eventDetails ? `\nEVENT DETAILS:\n${eventDetails}` : ''}
 
 WEBSITE CONTENT:
 ${contentSnippet || '(use brand name and email purpose)'}
@@ -406,11 +461,12 @@ Return ONLY the JSON object.`;
 export default async (req: Request, _context: Context) => {
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
   try {
-    const { websiteUrl, ctaUrl, eventDetails, images, emailType, revisionRequest, conversationHistory } = await req.json();
+    const { websiteUrl, images, emailType, revisionRequest, conversationHistory } = await req.json();
     if (!websiteUrl) return new Response(JSON.stringify({ error: "Missing websiteUrl" }), { status: 400, headers: { "Content-Type": "application/json" } });
     const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
     if (!anthropicKey) return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }), { status: 500, headers: { "Content-Type": "application/json" } });
-    const ctaLink = ctaUrl?.trim() || websiteUrl;
+    // Single URL flow — the website URL is the CTA destination
+    const ctaLink = websiteUrl;
     const currentYear = new Date().getFullYear();
     const [jinaResult, rawHtmlResult] = await Promise.allSettled([
       fetch(`https://r.jina.ai/${websiteUrl}`, { headers: { Accept: "text/plain", "X-Return-Format": "text", "X-Timeout": "4" }, signal: AbortSignal.timeout(5000) }).then(r => r.text()),
@@ -466,7 +522,7 @@ export default async (req: Request, _context: Context) => {
       emailHtml = emailHtml.replace(/<a\b(?![^>]*target)([^>]*?)>/gi, '<a$1 target="_blank" rel="noopener noreferrer">');
       updatedHistory = [...conversationHistory, { role: "user", content: `Revise the email: ${revisionRequest}` }, { role: "assistant", content: emailHtml }];
     } else {
-      const sectionPrompt = buildSectionPrompt(bk, colors, ctaLink, contentSnippet, eventDetails || '', emailType || '', imageSlots, currentYear);
+      const sectionPrompt = buildSectionPrompt(bk, colors, ctaLink, contentSnippet, emailType || '', imageSlots, currentYear);
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": anthropicKey, "anthropic-version": "2023-06-01" },
@@ -496,10 +552,13 @@ export default async (req: Request, _context: Context) => {
         { role: "assistant", content: "Understood. Ready to revise." },
       ];
     }
+    // HTML integrity verification — log issues but don't block delivery
+    const integrity = verifyHtmlIntegrity(emailHtml);
     return new Response(
       JSON.stringify({
         success: true, emailHtml, conversationHistory: updatedHistory,
         brandKit: { logoUrl: bk.logoUrl, ogImage: bk.ogImage, buttonColor: colors.button, headingColor: colors.heading, primaryColor: colors.primary, fonts: bk.fonts, brandName: bk.brandName },
+        ...(integrity.ok ? {} : { warnings: integrity.issues }),
       }),
       { headers: { "Content-Type": "application/json" } }
     );
