@@ -145,7 +145,7 @@
   <div id="loading">
     <div class="loading-ring"></div>
     <p class="loading-text" id="loading-text">Starting…</p>
-    <p class="loading-sub" id="loading-sub">Connecting to the model — this usually takes 30–60 seconds.</p>
+    <p class="loading-sub" id="loading-sub">Connecting to the model — this usually takes 10–20 seconds.</p>
     <div class="loading-progress" id="loading-progress"></div>
   </div>
 
@@ -481,7 +481,7 @@
     hideError();
     conversationHistory = [];
     setLoading(true, 'Starting\u2026');
-    loadingSub.textContent = 'Connecting to the model \u2014 this usually takes 30\u201360 seconds.';
+    loadingSub.textContent = 'Connecting to the model \u2014 this usually takes 10\u201320 seconds.';
     loadingProgress.classList.remove('visible');
     loadingProgress.textContent = '';
 
@@ -506,7 +506,7 @@
             loadingSub.textContent = 'Fetching content from the URL you provided.';
           } else if (message === 'writing') {
             setLoadingText('Writing your email\u2026');
-            loadingSub.textContent = 'Sonnet 4.6 is streaming the HTML \u2014 this takes 30\u201360 seconds.';
+            loadingSub.textContent = 'Haiku 4.5 is streaming the HTML \u2014 this takes 10\u201320 seconds.';
           }
         },
         onChunk: (chunk) => {

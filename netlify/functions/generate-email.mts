@@ -3,7 +3,7 @@ import { BRAND_CONTEXT, CLIENTS, type ClientId } from "./_brand-context.js";
 
 // ─── Constants ─────────────────────────────────────────────────────────────────────
 
-const MODEL = "claude-sonnet-4-6";
+const MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 6000;
 const MAX_PAGE_CONTENT_CHARS = 6000;
 
