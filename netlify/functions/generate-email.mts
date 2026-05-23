@@ -7,7 +7,7 @@ const MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS = 6000;
 const MAX_PAGE_CONTENT_CHARS = 6000;
 
-// ─── HTML integrity check (carried over from prior version) ───────────────────────
+// ─── HTML integrity check ─────────────────────────────────────────────────────────
 
 function verifyHtmlIntegrity(html: string): string[] {
   const warnings: string[] = [];
@@ -42,7 +42,7 @@ function postProcessHtml(html: string): string {
   return out;
 }
 
-// ─── Destination URL fetch (Jina) — gives the model real context about the offer ──
+// ─── Destination URL fetch (Jina) ─────────────────────────────────────────────────
 
 async function fetchPageContent(url: string): Promise<string> {
   if (!url) return "";
@@ -117,6 +117,98 @@ ${imageBlock}${pageBlock}
 Produce the complete HTML email now.`;
 }
 
+// ─── Streaming helpers ─────────────────────────────────────────────────────────────
+
+interface Msg {
+  role: "user" | "assistant";
+  content: string;
+}
+
+function writeJsonLine(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder,
+  obj: unknown,
+) {
+  controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+}
+
+/**
+ * Calls Anthropic's Messages API with stream=true, parses the SSE events, and
+ * forwards each text delta as an NDJSON line to the client. Returns the
+ * accumulated full text once Anthropic closes the stream.
+ */
+async function streamFromAnthropic(
+  anthropicKey: string,
+  systemPrompt: string,
+  messages: Msg[],
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder,
+): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      stream: true,
+      system: systemPrompt,
+      messages,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => "");
+    throw new Error(`Anthropic API ${res.status}: ${errText.slice(0, 500)}`);
+  }
+  if (!res.body) {
+    throw new Error("Anthropic API returned no body.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const payload = line.slice(6).trim();
+      if (!payload || payload === "[DONE]") continue;
+
+      try {
+        const event = JSON.parse(payload) as {
+          type?: string;
+          delta?: { type?: string; text?: string };
+        };
+        if (
+          event.type === "content_block_delta" &&
+          event.delta?.type === "text_delta" &&
+          typeof event.delta.text === "string"
+        ) {
+          const chunk = event.delta.text;
+          fullText += chunk;
+          writeJsonLine(controller, encoder, { type: "text", chunk });
+        }
+      } catch {
+        // Skip malformed SSE payloads silently
+      }
+    }
+  }
+
+  return fullText;
+}
+
 // ─── Main handler ──────────────────────────────────────────────────────────────────
 
 interface RequestBody {
@@ -125,7 +217,7 @@ interface RequestBody {
   brief?: string;
   imageUrls?: string[];
   revisionRequest?: string;
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
+  conversationHistory?: Msg[];
 }
 
 export default async (req: Request, _context: Context) => {
@@ -139,152 +231,122 @@ export default async (req: Request, _context: Context) => {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  let body: RequestBody;
   try {
-    const body = (await req.json()) as RequestBody;
-    const {
-      clientId,
-      websiteUrl,
-      brief,
-      imageUrls = [],
-      revisionRequest,
-      conversationHistory,
-    } = body;
-
-    if (!clientId || !(clientId in BRAND_CONTEXT)) {
-      return new Response(
-        JSON.stringify({
-          error: `Unknown clientId: ${clientId || "(missing)"}. Valid options: ${CLIENTS.map(c => c.id).join(", ")}`,
-        }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
-    }
-    const typedClientId = clientId as ClientId;
-    const clientMeta = CLIENTS.find(c => c.id === typedClientId)!;
-    const brandContext = BRAND_CONTEXT[typedClientId];
-
-    if (!revisionRequest && !websiteUrl) {
-      return new Response(
-        JSON.stringify({ error: "Missing websiteUrl" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
-    if (!anthropicKey) {
-      return new Response(
-        JSON.stringify({ error: "ANTHROPIC_API_KEY not configured on Netlify site" }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    const cleanImages = (imageUrls || []).map(u => u.trim()).filter(Boolean);
-
-    // ─── Revision path ─────────────────────────────────────────────────────────────
-    if (revisionRequest && conversationHistory && conversationHistory.length > 0) {
-      const systemPrompt = buildSystemPrompt(clientMeta.label, brandContext);
-      const messages = [
-        ...conversationHistory,
-        {
-          role: "user" as const,
-          content: `Revise the email based on this feedback: ${revisionRequest}\n\nReturn ONLY the complete updated HTML document — no preamble, no code fences.`,
-        },
-      ];
-
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": anthropicKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system: systemPrompt,
-          messages,
-        }),
-      });
-
-      if (!res.ok) {
-        const e = await res.json().catch(() => null);
-        return new Response(
-          JSON.stringify({ error: `Revision failed: ${e ? JSON.stringify(e) : res.status}` }),
-          { status: 500, headers: { "Content-Type": "application/json" } },
-        );
-      }
-
-      const data = await res.json();
-      const rawHtml = data.content[0].text;
-      const emailHtml = postProcessHtml(rawHtml);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          emailHtml,
-          conversationHistory: [
-            ...conversationHistory,
-            { role: "user", content: `Revise the email based on this feedback: ${revisionRequest}` },
-            { role: "assistant", content: emailHtml },
-          ],
-          integrityWarnings: verifyHtmlIntegrity(emailHtml),
-          client: clientMeta,
-        }),
-        { headers: { "Content-Type": "application/json" } },
-      );
-    }
-
-    // ─── Fresh-generation path ────────────────────────────────────────────────────
-    const pageContent = websiteUrl ? await fetchPageContent(websiteUrl) : "";
-
-    const systemPrompt = buildSystemPrompt(clientMeta.label, brandContext);
-    const userPrompt = buildUserPrompt(websiteUrl!, brief || "", pageContent, cleanImages);
-
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
+    body = (await req.json()) as RequestBody;
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     });
+  }
 
-    if (!res.ok) {
-      const e = await res.json().catch(() => null);
-      return new Response(
-        JSON.stringify({ error: `AI generation failed: ${e ? JSON.stringify(e) : res.status}` }),
-        { status: 500, headers: { "Content-Type": "application/json" } },
-      );
-    }
+  const { clientId, websiteUrl, brief, imageUrls = [], revisionRequest, conversationHistory } =
+    body;
 
-    const data = await res.json();
-    const rawHtml = data.content[0].text;
-    const emailHtml = postProcessHtml(rawHtml);
-
+  if (!clientId || !(clientId in BRAND_CONTEXT)) {
     return new Response(
       JSON.stringify({
-        success: true,
-        emailHtml,
-        conversationHistory: [
-          { role: "user", content: userPrompt },
-          { role: "assistant", content: emailHtml },
-        ],
-        integrityWarnings: verifyHtmlIntegrity(emailHtml),
-        client: clientMeta,
+        error: `Unknown clientId: ${clientId || "(missing)"}. Valid options: ${CLIENTS.map(c => c.id).join(", ")}`,
       }),
-      { headers: { "Content-Type": "application/json" } },
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
-  } catch (err: any) {
+  }
+  if (!revisionRequest && !websiteUrl) {
+    return new Response(JSON.stringify({ error: "Missing websiteUrl" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const anthropicKey = Netlify.env.get("ANTHROPIC_API_KEY");
+  if (!anthropicKey) {
     return new Response(
-      JSON.stringify({ error: err?.message ?? "Unknown error" }),
+      JSON.stringify({ error: "ANTHROPIC_API_KEY not configured on Netlify site" }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
+
+  const typedClientId = clientId as ClientId;
+  const clientMeta = CLIENTS.find(c => c.id === typedClientId)!;
+  const brandContext = BRAND_CONTEXT[typedClientId];
+  const cleanImages = (imageUrls || []).map(u => u.trim()).filter(Boolean);
+  const isRevision =
+    !!revisionRequest && Array.isArray(conversationHistory) && conversationHistory.length > 0;
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        writeJsonLine(controller, encoder, { type: "status", message: "starting" });
+
+        const systemPrompt = buildSystemPrompt(clientMeta.label, brandContext);
+        let messages: Msg[];
+        let userPromptForHistory: string;
+
+        if (isRevision) {
+          const revisionInstruction =
+            `Revise the email based on this feedback: ${revisionRequest}\n\n` +
+            `Return ONLY the complete updated HTML document — no preamble, no code fences.`;
+          messages = [
+            ...conversationHistory!,
+            { role: "user", content: revisionInstruction },
+          ];
+          userPromptForHistory = `Revise the email based on this feedback: ${revisionRequest}`;
+        } else {
+          writeJsonLine(controller, encoder, { type: "status", message: "reading-destination" });
+          const pageContent = websiteUrl ? await fetchPageContent(websiteUrl) : "";
+          const userPrompt = buildUserPrompt(websiteUrl!, brief || "", pageContent, cleanImages);
+          messages = [{ role: "user", content: userPrompt }];
+          userPromptForHistory = userPrompt;
+        }
+
+        writeJsonLine(controller, encoder, { type: "status", message: "writing" });
+        const fullText = await streamFromAnthropic(
+          anthropicKey,
+          systemPrompt,
+          messages,
+          controller,
+          encoder,
+        );
+
+        const emailHtml = postProcessHtml(fullText);
+        const newHistory: Msg[] = isRevision
+          ? [
+              ...conversationHistory!,
+              { role: "user", content: userPromptForHistory },
+              { role: "assistant", content: emailHtml },
+            ]
+          : [
+              { role: "user", content: userPromptForHistory },
+              { role: "assistant", content: emailHtml },
+            ];
+
+        writeJsonLine(controller, encoder, {
+          type: "done",
+          emailHtml,
+          conversationHistory: newHistory,
+          integrityWarnings: verifyHtmlIntegrity(emailHtml),
+          client: clientMeta,
+        });
+        controller.close();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        writeJsonLine(controller, encoder, { type: "error", error: message });
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Content-Type-Options": "nosniff",
+      "X-Accel-Buffering": "no",
+    },
+  });
 };
 
 export const config = { path: "/api/generate-email" };
