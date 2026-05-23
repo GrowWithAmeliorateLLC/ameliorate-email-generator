@@ -30,8 +30,10 @@
     label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink);}
     .field-hint{font-size:11px;color:var(--muted);margin-top:-2px;}
     input[type=text],input[type=url],textarea{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;}
-    input:focus,textarea:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
+    input:focus,textarea:focus,.client-select:focus{border-color:var(--lime);background:var(--white);box-shadow:0 0 0 3px rgba(201,226,101,.25);}
     textarea{resize:vertical;min-height:66px;line-height:1.5;}
+    .client-select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--ink);background:#fafafa;outline:none;transition:border-color .2s,box-shadow .2s;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");background-repeat:no-repeat;background-position:right 13px center;padding-right:36px;}
+    .client-select:invalid{color:var(--muted);}
     .detected-panel{background:#f8f5ff;border:1.5px solid rgba(124,77,255,.2);border-radius:12px;padding:12px 14px;display:none;}
     .detected-panel.visible{display:block;}
     .detected-label{font-family:'Montserrat',sans-serif;font-weight:700;font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--purple);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -148,10 +150,28 @@
     <div id="input-panel">
       <div class="card">
         <div class="form-grid">
-          <div class="section-label">Brand Source</div>
+          <div class="section-label">Client</div>
           <div class="field">
-            <label for="website-url">Client Website URL</label>
-            <span class="field-hint">Used for brand colors, logo, images &amp; tone — paste the page you want the email to link to</span>
+            <label for="client-id">Brand</label>
+            <span class="field-hint">Pick the client this email is for. Brand voice, colors, fonts, and rules come from each client's brand bible.</span>
+            <select id="client-id" class="client-select">
+              <option value="" disabled selected>Choose a client…</option>
+              <option value="lazar-center">Lazar Center</option>
+              <option value="code-ninjas">Code Ninjas</option>
+              <option value="club-scikidz">Club SciKidz</option>
+              <option value="kidcreate">Kidcreate Studio</option>
+              <option value="romp-n-roll">Romp n' Roll</option>
+              <option value="gramercy-music-academy">Gramercy Music Academy</option>
+              <option value="jump-gymnastics">Jump! Gymnastics</option>
+              <option value="weight-loss-rva">Weight Loss RVA</option>
+              <option value="young-chefs-academy">Young Chefs® Academy</option>
+            </select>
+          </div>
+
+          <div class="section-label">Destination</div>
+          <div class="field">
+            <label for="website-url">Destination URL</label>
+            <span class="field-hint">The page this email links to (the camp, landing page, signup form, etc.).</span>
             <input type="url" id="website-url" placeholder="https://your-clients-website.com/page" autocomplete="off" />
           </div>
           <div class="detected-panel" id="detected-panel">
@@ -161,8 +181,8 @@
 
           <div class="section-label">Email Details</div>
           <div class="field">
-            <label for="email-type">Email Purpose</label>
-            <span class="field-hint">What's the email about? Be specific — campaign goal, audience, any deadlines.</span>
+            <label for="email-type">Email Brief</label>
+            <span class="field-hint">What's the email about? Be specific — campaign goal, audience, any deadlines or promo codes.</span>
             <textarea id="email-type" placeholder="e.g. Summer enrollment email for parents of K–5 students. Filling-fast urgency. Locations in Charlotte and Fort Mill." rows="3"></textarea>
           </div>
 
@@ -244,6 +264,7 @@
 
   const websiteUrlEl   = document.getElementById('website-url');
   const emailTypeEl    = document.getElementById('email-type');
+  const clientIdEl     = document.getElementById('client-id');
   const generateBtn    = document.getElementById('generate-btn');
   const formError      = document.getElementById('form-error');
   const loading        = document.getElementById('loading');
@@ -350,19 +371,22 @@
   function getImages() { return Array.from(imagesSection.querySelectorAll('.img-input')).map(inp => inp.value.trim()); }
 
   generateBtn.addEventListener('click', async () => {
+    const clientId = clientIdEl.value;
+    if (!clientId) { showError('Please pick a client first.'); return; }
     const url = websiteUrlEl.value.trim();
-    if (!url.startsWith('http')) { showError('Please enter a valid client website URL.'); return; }
+    if (!url.startsWith('http')) { showError('Please enter a valid destination URL.'); return; }
     hideError(); conversationHistory = [];
-    setLoading(true, 'Reading brand kit\u2026');
-    setTimeout(() => setLoadingText('Extracting colors & logo\u2026'), 5000);
-    setTimeout(() => setLoadingText('Writing your email\u2026'), 10000);
+    setLoading(true, 'Loading brand bible\u2026');
+    setTimeout(() => setLoadingText('Reading destination page\u2026'), 4000);
+    setTimeout(() => setLoadingText('Writing your email\u2026'), 9000);
     try {
       const res = await fetch('/api/generate-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          clientId,
           websiteUrl: url,
-          images: getImages(),
-          emailType: emailTypeEl.value.trim(),
+          imageUrls: getImages(),
+          brief: emailTypeEl.value.trim(),
         }),
       });
       const data = await res.json();
@@ -379,7 +403,7 @@
     try {
       const res = await fetch('/api/generate-email', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ websiteUrl: websiteUrlEl.value.trim(), revisionRequest: request, conversationHistory }),
+        body: JSON.stringify({ clientId: clientIdEl.value, websiteUrl: websiteUrlEl.value.trim(), revisionRequest: request, conversationHistory }),
       });
       const data = await res.json();
       if (!res.ok || data.error) { showToast('Revision failed \u2014 try again'); return; }
@@ -426,6 +450,7 @@
     outputPanel.style.display='none'; inputPanel.style.display='block';
     websiteUrlEl.value='';
     emailTypeEl.value=''; revisionInput.value='';
+    clientIdEl.value='';
     imageCount=1;
     imagesSection.innerHTML=`<div class="image-row"><span class="img-label">IMG 1</span><input type="url" class="img-input" placeholder="https://\u2026" /><button class="add-image-btn" id="add-img-btn" title="Add" onclick="addImageRow('')">+</button></div>`;
     detectedPanel.classList.remove('visible');
