@@ -20,7 +20,7 @@ export const YOUNG_CHEFS_ACADEMY: string = `# Young Chefs® Academy
 | **Network rating** | 4.7 stars on Google · 1,359 reviews (aggregated brand-wide) |
 | **As Seen On** | CNN, ABC, Food Network, Working Mother, Inc., Disney, Fox, Blippi |
 | **Booking platform** | **WellnessLiving** — \`wellnessliving.com\` (same as Romp n' Roll; per-location k_business IDs) |
-| **CMS** | WordPress |
+| **CMS** | WordPress (Sage theme + Tailwind) |
 
 ### URL pattern across the franchise network
 - **Parent corporate site:** \`youngchefsacademy.com\`
@@ -39,33 +39,51 @@ export const YOUNG_CHEFS_ACADEMY: string = `# Young Chefs® Academy
 
 ## Visual identity
 
-> ⚠️ **HEX CODES + FONT NAMES NEEDED.** The site runs on Elementor/WordPress and the CSS variables didn't surface in the page fetch. Visually the brand reads as **warm cream + tomato red + a sage/herb green accent** — the typical "approachable culinary" palette — but exact values need confirmation.
->
-> **Action items to close:**
-> - Confirm primary brand red/tomato hex
-> - Confirm cream background hex
-> - Confirm accent green hex
-> - Display + body fonts
+> ✅ Colors **confirmed** from CSS variables on the live Pittsburgh East PA site (\`--wp--preset--color--brand-*\` tokens in the WordPress/Sage theme).
 
 ### Logos
 - **Primary logo (cropped favicon):** \`https://youngchefsacademy.com/wp-content/uploads/2025/01/cropped-YCA-Logo-270x270.png\`
-- **Full logo (uncropped, likely):** \`https://youngchefsacademy.com/wp-content/uploads/2025/01/YCA-Logo.png\` *(verify path)*
+- **Inline SVG logo** is embedded directly in the header/footer of every page — green wordmark with the orange running-chef figure. Two-color: \`#17AA4A\` (the leaf/flourish), \`#F47523\` (the chef figure), \`#183B29\` (the "Young Chefs Academy" wordmark).
 
 ### Color palette
 \`\`\`css
-/* APPROXIMATE — confirm before shipping */
---yca-red:        #C8362A;   /* primary tomato red — likely brand */
---yca-cream:      #F8F0E1;   /* warm cream background */
---yca-paper:      #FFFFFF;
---yca-ink:        #2A2520;   /* warm dark brown for text */
---yca-charcoal:   #4A413B;
---yca-muted:      #8A7F76;
---yca-accent-green: #6BA547; /* fresh herb green for accents */
---yca-warm-yellow: #F2C84B;  /* warm "butter" accent for callouts */
+/* CONFIRMED from live CSS variables on pittsburgheastpa.youngchefsacademy.com */
+
+/* Greens — the brand's anchor */
+--yca-green-dark:    #183B29;   /* primary brand green — hero backgrounds, wordmark, headings */
+--yca-green-light:   #17AA4A;   /* accent green — leaf flourishes, secondary highlights */
+
+/* Orange — the signature CTA color */
+--yca-orange:        #F47523;   /* every primary button, the running-chef icon, key accents */
+
+/* Neutrals */
+--yca-ink:           #27282c;   /* body text — very dark cool gray, near-black */
+--yca-paper:         #FFFFFF;   /* primary surface */
+--yca-anthracite:    #1C1F22;   /* footer background — Tailwind \`.bg-anthracite\` (approx; dark cool gray) */
+--yca-card-border:   rgba(0, 14, 51, 0.06);  /* subtle card border — #000e330f at 1px */
 \`\`\`
 
+**Hierarchy in use:**
+- **Dark green (#183B29)** = section backgrounds (hero, dark sections), headings on light backgrounds, the wordmark
+- **Light green (#17AA4A)** = small accents and the logo flourish — NOT used as a background; never paired with white text in large blocks
+- **Orange (#F47523)** = the *only* CTA color. Every button on the site. Don't dilute by using it elsewhere as a background.
+- **White (#FFFFFF)** = primary surface for cards + body text on dark green
+- **Anthracite** = footer only
+
 ### Typography
-- *(not yet captured — visually consistent with a friendly script display + clean sans body pairing, but verify)*
+> The Sage theme bundles fonts via \`app.css\`, so the exact \`font-family\` isn't in the page source. Visually the brand reads as a **bold modern sans-serif** — heavy headings (font-weight 700–900), uppercase letter-spaced CTA buttons, comfortable body text.
+>
+> **Safe email font stack** *(best-guess + reliable fallback)*:
+> \`\`\`css
+> font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+> \`\`\`
+> Poppins is the closest match to the brand's friendly geometric character. Optional Google Fonts import for the hero/heading only — body should use the fallback stack to stay email-safe.
+
+**Typographic moves:**
+- **Headings:** bold to extra-bold (700–900), tight line-height (~1.1), often paired with \`<strong>\` inside the heading text itself
+- **Body:** regular weight, line-height 1.5–1.6, dark cool gray (\`#27282c\`)
+- **Buttons:** ALL CAPS, \`letter-spacing: 0.05em\`, \`font-weight: 700\`, no underline, slight border-radius (~4–6px, NOT pill)
+- **\`<strong>\` is used aggressively inside body copy** — the brand bolds key phrases mid-sentence for emphasis, not just for headings
 
 ### Stock program imagery (used network-wide)
 - Cooking class tile: \`https://youngchefsacademy.com/wp-content/uploads/2025/02/Class-1.png\`
@@ -189,36 +207,77 @@ The brand is built on **joy, creativity, and discovery** — not skill remediati
 
 | Move | Why it fits YCA |
 |---|---|
-| **3-tile program row** (Classes / Camps / Parties) | Mirrors their own homepage structure — proven |
-| **"As Seen On" media logo strip** | CNN / ABC / Food Network / Disney / Fox / Blippi — strong network-level credibility |
-| **Google Reviews badge** with the 4.7 / 1,359-reviews framing | Brand-wide trust signal |
-| **Lifestyle photo grid** (kids in chef hats, in-action cooking shots) | The brand sells the *experience*, not the facility — photo-driven |
+| **Dark-green hero with orange CTA** | The signature visual: deep green background (\`#183B29\`), white text, single orange button (\`#F47523\`). Mirrors the homepage hero exactly. Optional white "View on Google · 4.7 (1,359 reviews)" badge underneath the CTA. |
+| **3-tile program row** (Classes / Camps / Parties) | Mirrors their own homepage structure — proven. Each tile = white card, subtle border (\`#000e330f\` at 1px), border-radius 10px, 16:9 image with rounded corners, bold heading, body copy, orange CTA at bottom. |
+| **"As Seen On" media logo strip** | CNN / ABC / Food Network / Disney / Fox / Working Mother / Inc. / Blippi — strong network-level credibility. White background, grayscale or full-color logos in a row. |
+| **Google Reviews badge** with the 4.7 / 1,359-reviews framing | Brand-wide trust signal. Often paired with the rating image asset. |
+| **Lifestyle photo grid** (kids in chef hats, in-action cooking shots) | The brand sells the *experience*, not the facility — photo-driven. Use 2-image side-by-side with rounded corners (20px). |
 | **Themed-camp / themed-workshop card** | Themes are how camps differentiate — global cuisines, holiday workshops, etc. |
-| **"What Parents Are Saying" testimonial block** | Their own header phrasing — use it |
-| **Intro Class CTA** as the primary conversion action | Their funnel anchor |
-| **Heritage callout** ("20 years," "nation's original children's cooking franchise") | Specific, unique, credible — better than generic "leading" claims |
-| **Per-location footer** with address + phone + per-location social | Network site footer pattern |
+| **"What Parents Are Saying" testimonial block** | Their own header phrasing — use it. Typically on a green background section. |
+| **Intro Class CTA** as the primary conversion action | Their funnel anchor. |
+| **Heritage callout** ("20 years," "nation's original children's cooking franchise") | Specific, unique, credible. |
+| **Anthracite-dark footer** with address + phone + per-location social | Matches the site's actual footer — dark cool gray bg, white text, simple list of links. |
+
+### Button styling reference (use this exactly for primary CTAs)
+\`\`\`css
+/* Primary CTA — the YCA signature button */
+.cta-primary {
+  background-color: #F47523;          /* brand orange */
+  color: #FFFFFF;
+  border: 1px solid #F47523;
+  padding: 12px 28px;
+  font-family: 'Poppins', -apple-system, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-radius: 4px;                 /* subtle rounding, NOT pill */
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* Secondary CTA (used in hero — white button on dark-green bg) */
+.cta-secondary {
+  background-color: #FFFFFF;
+  color: #183B29;                     /* brand green */
+  /* same padding/typography as primary */
+}
+\`\`\`
+
+### Section-background reference
+| Section type | Background | Text color |
+|---|---|---|
+| Hero | \`#183B29\` (dark green) + optional photo/video overlay at 27% opacity | \`#FFFFFF\` white |
+| Card row / standard content | \`#FFFFFF\` white | \`#27282c\` ink |
+| Testimonial block | \`#183B29\` dark green with optional background image | \`#FFFFFF\` white |
+| Footer | \`#1C1F22\` anthracite (approximate) | \`#FFFFFF\` white |
 
 ## Footer pattern
 
 \`\`\`
-[Young Chefs® Academy logo]
+[Anthracite-dark background, #1C1F22, white text]
 
-[Programs row]
-Cooking Classes · Culinary Camps · Kids Parties · Workshops · About Us · Contact
+[Young Chefs® Academy logo — wordmark + chef icon, scaled to ~80px width]
 
-Young Chefs® Academy of Pittsburgh East, PA
-6 Torrens Street
-Pittsburgh, PA 15206
-(412) 540-3505
+[Programs row — horizontal links, white, no underline]
+Cooking Classes  ·  Culinary Camps  ·  Kids Parties  ·  Workshops  ·  About Us  ·  Contact
 
-[Facebook] · [Instagram]
+[Two-column section]
+Left column:
+  Young Chefs Academy of Pittsburgh East, PA
+  6 Torrens Street
+  Pittsburgh, PA 15206
+  (412) 540-3505
+  
+  [Facebook icon] · [Instagram icon]
 
-Our Mission: To make a positive lasting impact on children and families through teaching
-the joy and value of cooking in a welcoming environment that encourages discovery and creativity.
+Right column (optional):
+  Newsletter signup or featured CTA
 
-Unsubscribe · Update Preferences
+[Thin divider line: 1px, rgba(0,0,0,0.5)]
+
 © [YEAR] Young Chefs® Academy. All Rights Reserved.
+Unsubscribe · Update Preferences
 \`\`\`
 
 ## Known quirks
@@ -231,6 +290,7 @@ Unsubscribe · Update Preferences
 - **"Cooking" vs "Culinary"** — both are used, but "culinary arts" carries the elevated framing the brand wants. "Cooking" works for casual/joyful copy; "culinary" for credibility/curriculum copy. Mix intentionally.
 - **20-year heritage update** — the brand recently updated copy from "more than a decade" to "twenty years." Use the current "twenty years" framing.
 - **Don't blur with adult cooking schools** — YCA primary brand is kids. Adult courses are a real but secondary offering, NOT the lead.
+- **Orange is precious** — \`#F47523\` is *only* used for buttons and the chef-figure logo accent. Don't use it as a background or for plain text — that dilutes the CTA signal.
 
 ## Example emails
 - \`examples/young-chefs-academy/\` — *(empty — no past YCA emails built yet)*
@@ -240,9 +300,9 @@ Unsubscribe · Update Preferences
 > 2. **First email we build via Claude becomes the structural reference**
 
 ## Open items to confirm
-- [ ] Exact hex codes (primary red, cream background, accent green)
-- [ ] Display + body fonts (likely friendly script + sans pair)
-- [ ] Full uncropped logo URL
+- [x] ~~Exact hex codes~~ ✅ Confirmed: \`#183B29\` dark green, \`#17AA4A\` light green, \`#F47523\` orange, \`#27282c\` body ink, \`#1C1F22\`-ish anthracite footer
+- [ ] Exact font-family (best guess: Poppins; system sans-serif fallback works fine for emails)
+- [ ] Full uncropped logo URL *(the SVG is embedded in every page — could be extracted)*
 - [ ] Pittsburgh East owner / point-of-contact name
 - [ ] Pittsburgh East specific age tiers (the network says "all ages" — but each location typically has structured age groups; pull from their \`/weekly-classes/\` page when known)
 - [ ] Current promotional offers / camp themes for the season
