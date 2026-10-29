@@ -314,8 +314,17 @@ function renderSessions() {
 function readSession(e, kind, idx) {
   const key = `${kind}${idx}`, v = (f) => ($(`${key}_${f}`)?.value || "").trim();
   const d = evDate(e.due);
-  return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), spots: v("spots"), content: e.content || "", link: e.link };
+  return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), spots: v("spots"), content: e.content || "", link: e.link,
+    _order: d.getTime() + minutesOf(v("start")) * 60000 };
 }
+// "8:30 AM" -> 510. Unparseable times sort last within the day.
+function minutesOf(t) {
+  const m = /^\s*(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m?\.?/i.exec(t || "");
+  if (!m) return 24 * 60;
+  let h = +m[1] % 12; if (/p/i.test(m[3])) h += 12;
+  return h * 60 + (+m[2] || 0);
+}
+const byWhen = (a, b) => a._order - b._order;
 
 $("img").oninput = () => { const u = $("img").value.trim(); $("imgPrev").src = u; show($("imgPrev"), /^https:\/\//.test(u)); };
 
@@ -325,8 +334,9 @@ $("gen").onclick = async () => {
   const services = { email: $("svcEmail").checked, sms: $("svcSms").checked, social: $("svcSocial").checked };
   show($("genErr"), false);
   if (!services.email && !services.sms && !services.social) { $("genErr").textContent = "Check at least one service in step 1."; show($("genErr")); return; }
-  SESS = SEL.promote.map((e, i) => readSession(e, "promote", i));
-  ALSO = SEL.also.map((e, i) => readSession(e, "also", i));
+  // Time order: the earliest session leads and supplies the main button + SMS link.
+  SESS = SEL.promote.map((e, i) => readSession(e, "promote", i)).sort(byWhen);
+  ALSO = SEL.also.map((e, i) => readSession(e, "also", i)).sort(byWhen);
   const missing = [...SESS, ...ALSO].filter(s => !s.start || !s.price).map(s => s.name);
   if (missing.length) { $("genErr").textContent = `Add the start time and price for: ${missing.join(", ")}`; show($("genErr")); return; }
   const img = $("img").value.trim();
