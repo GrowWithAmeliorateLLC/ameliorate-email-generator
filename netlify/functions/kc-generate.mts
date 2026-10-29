@@ -115,15 +115,19 @@ EXTRA INSTRUCTIONS FROM AMY/RANDI: ${b.notes || "(none)"}`;
   const raw = await res.text();
   if (!res.ok) return json({ error: `Claude API ${res.status}: ${raw.slice(0, 400)}` }, 502);
 
-  let text = "";
-  try { text = (JSON.parse(raw).content || []).map((c: any) => c.text || "").join(""); } catch {}
+  let text = "", meta: any = {};
+  try {
+    const parsed = JSON.parse(raw);
+    meta = { model: parsed.model, stop_reason: parsed.stop_reason, blocks: (parsed.content || []).map((c: any) => c.type), usage: parsed.usage };
+    text = (parsed.content || []).map((c: any) => (c.type === "text" ? c.text || "" : "")).join("");
+  } catch {}
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
   try {
     const out = JSON.parse(text.slice(start, end + 1));
     return json({ ok: true, copy: out });
   } catch {
-    return json({ error: "Claude returned something that wasn't JSON. Try Generate again.", raw: text.slice(0, 1500) }, 502);
+    return json({ error: "Claude returned something that wasn't JSON. Try Generate again.", meta, raw: text.slice(0, 1500) }, 502);
   }
 };
 
