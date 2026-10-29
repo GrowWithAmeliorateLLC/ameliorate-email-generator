@@ -6,7 +6,7 @@ const MODEL_DEFAULT = "claude-sonnet-5-5";
 
 interface Session {
   name: string; date: string; start: string; end: string; ages: string;
-  price: string; spots: string; content: string;
+  price: string; content: string;
 }
 
 const RULES = `You write event marketing for Kidcreate Studio, a kids' art studio franchise, on behalf of Grow With Ameliorate.
@@ -36,10 +36,10 @@ EMAIL COPY
 - intro1 / intro2: 1–2 sentences each.
 - band: date (e.g. "Tue, Nov 3"; for a bundled day, the one date), time (full span, e.g. "8:30 AM – 4:30 PM"), ages ("5–12"), agesSub ("Drop-off" or "With a grown-up"), price ("$50"), priceSub ("per workshop", "per child"…).
 - cards: one per promoted session, in time order, ONLY when there are 2+ sessions (otherwise []). label like "MORNING · 8:30 AM – 12:00 PM · $50"; description 1–2 sentences from that session's own description; linkText like "Reserve the morning". sessionIndex = the session's index in the input.
-- urgency: one short line ONLY if the input shows real scarcity (spots left / "limited"); otherwise "".
+- urgency: one short line ONLY if the event description itself says spots are limited; never state a number of spots. Otherwise "".
 - ctaNote: one short helper line under the main button (e.g. how to book the full day), or "".
 - also: one entry per "also mention" event (label e.g. "ALSO THIS WEEK · FOR THE LITTLEST ONES", name, details line "Thu, Nov 5 · 10–11 AM · Ages 12 months–6 years · $20", description 1 sentence, linkText, alsoIndex). [] if none.
-- imageAlt: short, describes the photo as Randi described it (or generic kids-at-the-art-table if unknown).
+- imageAlt: short, plain description of the attached photo.
 
 SMS (Amy's format) — 3 announce options A/B/C + 1 last call
 - Open with timing + colon: "This Saturday 11/7:" / "No school Tue 11/3:". Last call opens "Tomorrow morning:" / "Tomorrow afternoon:" / "Tomorrow night:".
@@ -53,7 +53,9 @@ SOCIAL CAPTION (Facebook + Instagram)
 - Open on what the kids are doing, not the date. 1–3 short sentences, then a details line (event, date, time, ages, studio name), then exactly this CTA: "DM us for the link, or head to our site to register."
 - 0–1 emoji (🎨 only). End with 3–6 hashtags: the location's tags plus 1 event tag.
 
-FLAGS: at most 3, and only things Randi must act on before sending (image doesn't match the audience, description contradicts the schedule, a price or time is missing). One short sentence each. Don't flag choices you made correctly. [] if nothing.
+FLAGS: at most 3, and only things Randi must act on before sending (the photo doesn't match the event or its ages, the description contradicts the schedule, a price or time is missing, the event breaks a studio rule). One short sentence each. Don't flag choices you made correctly. [] if nothing.
+
+STUDIO RULES: the "Studio rules" line in the input is mandatory for that studio and overrides anything above.
 
 OUTPUT: return ONLY one JSON object, no markdown fences, exactly this shape (omit a top-level key if that service was not requested):
 {"angle":"","angleWhy":"","flags":[],
@@ -66,7 +68,7 @@ OUTPUT: return ONLY one JSON object, no markdown fences, exactly this shape (omi
 
 function sessionBlock(s: Session, i: number) {
   return `[${i}] ${s.name}
-  Date: ${s.date} · Time: ${s.start || "?"}–${s.end || "?"} · Ages: ${s.ages || "?"} · Price: ${s.price || "?"} · Spots: ${s.spots || "not given"}
+  Date: ${s.date} · Time: ${s.start || "?"}–${s.end || "?"} · Ages: ${s.ages || "?"} · Price: ${s.price || "?"}
   Description:
   ${(s.content || "(none)").replace(/\n/g, "\n  ")}`;
 }
@@ -88,9 +90,10 @@ export default async (req: Request) => {
   if (!sessions.length) return json({ error: "Pick at least one session." }, 400);
   if (!svc.email && !svc.sms && !svc.social) return json({ error: "Pick at least one service." }, 400);
 
+  const imageUrl = /^https:\/\/storage\.googleapis\.com\//.test(b.imageUrl || "") ? b.imageUrl : "";
   const wanted = [svc.email && "email", svc.sms && "sms", svc.social && "social"].filter(Boolean).join(", ");
   const user = `STUDIO: ${loc.name} (${loc.short})
-Studio notes: ${loc.notes}
+Studio rules: ${loc.notes || "(none beyond the general rules)"}
 Location hashtags: ${loc.hashtags}
 SERVICES REQUESTED: ${wanted} — only return those keys (plus angle/angleWhy/flags).
 
@@ -100,8 +103,8 @@ ${sessions.map(sessionBlock).join("\n\n")}
 ALSO MENTION:
 ${also.length ? also.map(sessionBlock).join("\n\n") : "(none)"}
 
-IMAGE: ${b.imageNote ? b.imageNote : "(no description given — don't describe specific projects in the photo)"}
-EXTRA INSTRUCTIONS FROM AMY/RANDI: ${b.notes || "(none)"}`;
+IMAGE: ${imageUrl ? "attached above. Look at it before writing." : "(none)"}
+ANYTHING ELSE TO INCLUDE: ${b.notes || "(nothing)"}`;
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -113,7 +116,12 @@ EXTRA INSTRUCTIONS FROM AMY/RANDI: ${b.notes || "(none)"}`;
       // "between_tools" is this model's way of saying "don't think before responding".
       thinking: { type: "between_tools" },
       system: RULES,
-      messages: [{ role: "user", content: user }],
+      messages: [{
+        role: "user",
+        content: imageUrl
+          ? [{ type: "image", source: { type: "url", url: imageUrl } }, { type: "text", text: user }]
+          : user,
+      }],
     }),
   });
   const raw = await res.text();

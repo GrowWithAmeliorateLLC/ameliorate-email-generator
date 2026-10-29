@@ -1,7 +1,10 @@
 // GET /api/kc/cards?loc=cypress — upcoming event cards from the location's ClickUp list.
 // Returns every task due in the next ~75 days that carries a MyStudio link in its Text field,
 // plus the parent cards they sit under (e.g. "NOV 3 CAMPS"), so the page can group them.
-import { LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json } from "./_kc.js";
+// Each card also gets start/end time and price from the studio's public MyStudio event feed.
+import {
+  LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json, parseMyStudio, mystudioEvents,
+} from "./_kc.js";
 
 export default async (req: Request) => {
   const denied = checkPass(req);
@@ -47,10 +50,26 @@ export default async (req: Request) => {
       status: t.status?.status || "",
       url: t.url,
     }))
-    .filter((e) => /cp\.mystudio\.io\/e\//i.test(e.link) && e.link.includes(`/${loc.companyId}/`));
+    .filter((e) => !!parseMyStudio(e.link));
+
+  // The studio's MyStudio company id = the one most of its own event links use.
+  // Cards pointing at a different company (copy/paste slips) are dropped.
+  const counts: Record<string, number> = {};
+  for (const e of events) { const c = parseMyStudio(e.link)!.company; counts[c] = (counts[c] || 0) + 1; }
+  const company = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const mine = events.filter((e) => parseMyStudio(e.link)!.company === company);
+
+  // Times + price from MyStudio. If MyStudio is unreachable, the page falls back to manual entry.
+  let ms: Record<string, any> = {};
+  let mystudio: { ok: boolean; error?: string; company: string | null } = { ok: false, company };
+  if (company) {
+    try { ms = await mystudioEvents(company); mystudio = { ok: true, company }; }
+    catch (e: any) { mystudio = { ok: false, company, error: String(e.message || e) }; }
+  }
+  const withTimes = mine.map((e) => ({ ...e, ms: ms[parseMyStudio(e.link)!.event] || null }));
 
   // Parent cards the events sit under (looked up if they fell outside the date window).
-  const parentIds = [...new Set(events.map((e) => e.parent).filter(Boolean))] as string[];
+  const parentIds = [...new Set(withTimes.map((e) => e.parent).filter(Boolean))] as string[];
   const parents: Record<string, { id: string; name: string; url: string }> = {};
   for (const pid of parentIds.slice(0, 20)) {
     let p = byId.get(pid);
@@ -60,8 +79,8 @@ export default async (req: Request) => {
     if (p) parents[pid] = { id: p.id, name: p.name, url: p.url };
   }
 
-  events.sort((a, b) => (a.due || 0) - (b.due || 0));
-  return json({ location: loc.id, list: loc.list, events, parents });
+  withTimes.sort((a, b) => (a.due || 0) - (b.due || 0));
+  return json({ location: loc.id, list: loc.list, events: withTimes, parents, mystudio });
 };
 
 export const config = { path: "/api/kc/cards" };
