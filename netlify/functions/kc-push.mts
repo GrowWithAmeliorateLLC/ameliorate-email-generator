@@ -1,0 +1,85 @@
+// POST /api/kc/push — creates EMAIL / SMS / SOCIAL subtasks under the event (or group) card,
+// assigned to Randi. An existing SOCIAL subtask is updated instead of duplicated.
+import {
+  LOCATIONS, RANDI_ID, F_TEXT, F_CONTENT, TYPE_IDS, clickupToken, checkPass, cu, json,
+} from "./_kc.js";
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// Noon US Central lands on the intended calendar day for every US time zone.
+const dueMs = (d: string) => Date.parse(`${d}T17:00:00Z`);
+
+export default async (req: Request) => {
+  if (req.method !== "POST") return json({ error: "POST only" }, 405);
+  const denied = checkPass(req);
+  if (denied) return denied;
+  const token = clickupToken();
+  if (!token) return json({ error: "No ClickUp token on this Netlify site yet." }, 503);
+
+  let b: any;
+  try { b = await req.json(); } catch { return json({ error: "Bad JSON" }, 400); }
+  const loc = LOCATIONS[b.loc];
+  if (!loc) return json({ error: "Unknown location." }, 400);
+  if (!b.parentId) return json({ error: "No event card picked." }, 400);
+
+  // The parent must live in this location's list — never write into another studio.
+  let parent: any;
+  try {
+    parent = await cu(`/task/${encodeURIComponent(b.parentId)}?include_subtasks=true`, token);
+  } catch (e: any) {
+    return json({ error: `Couldn't read the event card: ${e.message || e}` }, 502);
+  }
+  if (String(parent?.list?.id) !== loc.list) {
+    return json({ error: `That card isn't in ${loc.name}'s ClickUp list.` }, 400);
+  }
+  const existing: any[] = parent.subtasks || [];
+
+  const jobs: { name: "EMAIL" | "SMS" | "SOCIAL"; text?: string; content: string; due: string }[] = [];
+  if (b.email?.html) jobs.push({ name: "EMAIL", text: b.email.subject || "", content: b.email.html, due: b.dueDates?.email });
+  if (b.sms?.text) jobs.push({ name: "SMS", content: b.sms.text, due: b.dueDates?.sms });
+  if (b.social?.caption) jobs.push({ name: "SOCIAL", text: b.social.caption, content: b.social.imageUrl || "", due: b.dueDates?.social });
+  if (!jobs.length) return json({ error: "Nothing to push." }, 400);
+  for (const j of jobs) {
+    if (!DATE_RE.test(j.due || "")) return json({ error: `Missing due date for ${j.name}.` }, 400);
+  }
+
+  const results: any[] = [];
+  for (const j of jobs) {
+    const fields = [{ id: F_CONTENT, value: j.content }];
+    if (j.text) fields.push({ id: F_TEXT, value: j.text });
+    try {
+      const prior = j.name === "SOCIAL"
+        ? existing.find((s) => String(s.name || "").trim().toUpperCase() === "SOCIAL")
+        : null;
+      if (prior) {
+        await cu(`/task/${prior.id}`, token, {
+          method: "PUT",
+          body: JSON.stringify({ due_date: dueMs(j.due), due_date_time: false, assignees: { add: [RANDI_ID] } }),
+        });
+        for (const f of fields) {
+          await cu(`/task/${prior.id}/field/${f.id}`, token, { method: "POST", body: JSON.stringify({ value: f.value }) });
+        }
+        results.push({ name: j.name, action: "updated", id: prior.id, url: prior.url || `https://app.clickup.com/t/${prior.id}` });
+      } else {
+        const t = await cu(`/list/${loc.list}/task`, token, {
+          method: "POST",
+          body: JSON.stringify({
+            name: j.name,
+            parent: parent.id,
+            assignees: [RANDI_ID],
+            due_date: dueMs(j.due),
+            due_date_time: false,
+            custom_item_id: TYPE_IDS[j.name],
+            custom_fields: fields,
+          }),
+        });
+        results.push({ name: j.name, action: "created", id: t.id, url: t.url });
+      }
+    } catch (e: any) {
+      results.push({ name: j.name, action: "failed", error: String(e.message || e) });
+    }
+  }
+
+  return json({ ok: results.every((r) => r.action !== "failed"), parent: { id: parent.id, name: parent.name, url: parent.url }, results });
+};
+
+export const config = { path: "/api/kc/push" };
