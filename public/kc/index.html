@@ -86,6 +86,7 @@
           </div>
         </div>
       </div>
+      <div id="svcNote" class="muted hide" style="margin-top:6px"></div>
       <div id="locErr" class="err hide"></div>
     </section>
 
@@ -99,21 +100,13 @@
     <!-- 3. Details -->
     <section class="card hide" id="detailsCard">
       <h2><span class="step">3</span>Details from MyStudio</h2>
-      <div class="muted">Open each MyStudio page and fill in the time, price and spots left. The description comes from the ClickUp card.</div>
+      <div class="muted">Times and prices load from MyStudio and the description comes from the ClickUp card. Check them, change anything that's off.</div>
       <div id="sessions"></div>
-      <div class="row">
-        <div>
-          <label>Image URL (from the kid-create bucket)</label>
-          <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
-        </div>
-        <div>
-          <label>What's in the photo? (one line)</label>
-          <input type="text" id="imgNote" placeholder="e.g. school-age kids rolling out clay">
-        </div>
-      </div>
+      <label>Image URL (from the kid-create bucket)</label>
+      <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
       <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
-      <label>Anything Amy asked you to include? (optional)</label>
-      <input type="text" id="notes" placeholder='e.g. "also mention the 11/5 class", "no price in the SMS"'>
+      <label>Anything else to include? (optional)</label>
+      <input type="text" id="notes" placeholder='e.g. "no price in the SMS"'>
       <div style="margin-top:14px"><button id="gen">Generate</button> <span id="genStatus" class="muted"></span></div>
       <div id="genErr" class="err hide"></div>
     </section>
@@ -184,17 +177,12 @@ const $ = (id) => document.getElementById(id);
 const show = (el, on = true) => el.classList.toggle("hide", !on);
 let PASS = sessionStorage.getItem("kcPass") || "";
 let LOCS = {};               // id -> location config (from /api/kc/config + local link data)
-let EVENTS = [], PARENTS = {};
+let EVENTS = [], PARENTS = {}, MS_STATUS = {};
 let SEL = { promote: [], also: [] }; // arrays of event objects
 let COPY = null;             // last generated copy
 let state = { subjectIdx: 0, smsIdx: 0 };
 
-// Public, non-secret footer data per studio (mirrors netlify/functions/_kc.ts).
-const FOOT = {
-  cypress:   { name:"Kidcreate Studio Cypress", page:"https://www.kidcreate.com/locations/cypress", fb:"https://www.facebook.com/KidcreateStudioCypressTX", ig:"https://www.instagram.com/kidcreatestudio_cypresstx/", mail:"cypresstx@kidcreatestudio.com" },
-  broomfield:{ name:"Kidcreate Studio Broomfield", page:"https://www.kidcreate.com/locations/broomfield", fb:"https://www.facebook.com/kidcreatestudiobroomfieldco/", ig:"https://www.instagram.com/kidcreatestudio_broomfield/", mail:"broomfieldco@kidcreatestudio.com" },
-  denver:    { name:"Kidcreate Studio Denver South", page:"https://www.kidcreate.com/locations/denver", fb:"https://www.facebook.com/KidcreateStudioDenverCO", ig:"https://www.instagram.com/kidcreatestudio_denverco", mail:"denversouthco@kidcreatestudio.com" },
-};
+// Studio footer links come from /api/kc/config (LOCS), read from kidcreate.com.
 
 async function api(path, opts = {}) {
   const res = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", "x-kc-pass": PASS, ...(opts.headers || {}) } });
@@ -257,13 +245,17 @@ function cleanName(n) { return (n || "").replace(/^\([^)]*\)\s*/, "").replace(/\
 
 $("loc").onchange = async () => {
   const id = $("loc").value; SEL = { promote: [], also: [] }; show($("detailsCard"), false); show($("results"), false);
+  const so = !!(LOCS[id] && LOCS[id].socialOnly);
+  ["svcEmail", "svcSms"].forEach(k => { $(k).disabled = so; if (so) $(k).checked = false; });
+  $("svcNote").textContent = so ? "Social only for this studio (no email or SMS)." : ""; show($("svcNote"), so);
   if (!id) return;
   $("events").innerHTML = `<div class="muted" style="margin-top:8px">Loading events…</div>`;
   show($("locErr"), false);
   try {
     const j = await api(`/api/kc/cards?loc=${id}`);
-    EVENTS = j.events; PARENTS = j.parents;
+    EVENTS = j.events; PARENTS = j.parents; MS_STATUS = j.mystudio || {};
     renderEvents();
+    if (MS_STATUS.company && !MS_STATUS.ok) { $("locErr").textContent = "Couldn't load times and prices from MyStudio, so type them in from each MyStudio page."; show($("locErr")); }
   } catch (e) { $("events").innerHTML = ""; $("locErr").textContent = e.message; show($("locErr")); }
 };
 
@@ -296,16 +288,17 @@ function updateSelection() {
 
 function sessionRow(e, kind, idx) {
   const d = evDate(e.due);
+  const ms = e.ms || {};
   const key = `${kind}${idx}`;
   return `<div class="sess" data-key="${key}">
     <div><span class="pill">${kind === "promote" ? "Promote" : "Also mention"}</span> <b>${esc(e.name)}</b> · ${usShort(d)} · <a href="${e.link}" target="_blank" rel="noopener">open MyStudio ↗</a></div>
     <div class="row">
-      <div><label>Start time</label><input type="text" id="${key}_start" placeholder="8:30 AM"></div>
-      <div><label>End time</label><input type="text" id="${key}_end" placeholder="12:00 PM"></div>
+      <div><label>Start time</label><input type="text" id="${key}_start" placeholder="8:30 AM" value="${esc(ms.start || "")}"></div>
+      <div><label>End time</label><input type="text" id="${key}_end" placeholder="12:00 PM" value="${esc(ms.end || "")}"></div>
       <div><label>Ages</label><input type="text" id="${key}_ages" value="${esc(agesFromName(e.name))}"></div>
-      <div><label>Price</label><input type="text" id="${key}_price" placeholder="$50"></div>
-      <div><label>Spots left</label><input type="text" id="${key}_spots" placeholder="e.g. 7 left / Limited"></div>
+      <div><label>Price</label><input type="text" id="${key}_price" placeholder="$50" value="${esc(ms.price || "")}"></div>
     </div>
+    ${e.ms ? `<div class="muted">✓ Time and price loaded from MyStudio</div>` : `<div class="flag">MyStudio didn't return this event. Type the time and price from its page.</div>`}
   </div>`;
 }
 function renderSessions() {
@@ -314,7 +307,7 @@ function renderSessions() {
 function readSession(e, kind, idx) {
   const key = `${kind}${idx}`, v = (f) => ($(`${key}_${f}`)?.value || "").trim();
   const d = evDate(e.due);
-  return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), spots: v("spots"), content: e.content || "", link: e.link,
+  return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), content: e.content || "", link: e.link,
     _order: d.getTime() + minutesOf(v("start")) * 60000 };
 }
 // "8:30 AM" -> 510. Unparseable times sort last within the day.
@@ -341,10 +334,10 @@ $("gen").onclick = async () => {
   if (missing.length) { $("genErr").textContent = `Add the start time and price for: ${missing.join(", ")}`; show($("genErr")); return; }
   const img = $("img").value.trim();
   if (services.email || services.social) { if (!/^https:\/\/storage\.googleapis\.com\//.test(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
-  $("gen").disabled = true; $("genStatus").textContent = "Writing… (about 20 seconds)";
+  $("gen").disabled = true; $("genStatus").textContent = "Writing… (about 20–25 seconds)";
   try {
     const j = await api("/api/kc/generate", { method: "POST", body: JSON.stringify({
-      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageNote: $("imgNote").value.trim(), notes: $("notes").value.trim(),
+      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageUrl: img, notes: $("notes").value.trim(),
     }) });
     COPY = j.copy; COPY._services = services;
     renderResults();
@@ -357,7 +350,7 @@ $("gen").onclick = async () => {
 // ---------- email template (locked) ----------
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function buildEmail() {
-  const em = COPY.email, f = FOOT[$("loc").value];
+  const em = COPY.email, L = LOCS[$("loc").value], f = { name: L.name, page: L.page, fb: L.facebook, ig: L.instagram, mail: L.email };
   const subject = $("subjectEdit") ? $("subjectEdit").value : em.subjects[state.subjectIdx];
   const b = em.band || {};
   const cards = (em.cards || []).filter(c => SESS[c.sessionIndex]);
