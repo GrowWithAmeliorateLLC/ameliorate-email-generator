@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>KC Event Campaigns</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root { --teal:#028A9B; --mag:#D70287; --yel:#FACB39; --ink:#10252C; --ice:#D8EEF1; --pg:#F5FAEE; --line:#d9e3e5; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Poppins,Arial,sans-serif; color:var(--ink); background:#f6f8f9; }
+  header { background:var(--teal); color:#fff; padding:14px 20px; display:flex; align-items:center; gap:12px; }
+  header h1 { font-size:18px; margin:0; font-weight:800; }
+  header .sub { font-size:12px; opacity:.85; }
+  main { max-width:1100px; margin:0 auto; padding:18px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+  .step { background:var(--teal); color:#fff; border-radius:50%; width:22px; height:22px; font-size:12px; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+  label { font-size:12px; font-weight:600; display:block; margin:8px 0 3px; }
+  input[type=text], input[type=password], input[type=date], select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px; background:#fff; }
+  textarea { min-height:80px; resize:vertical; }
+  button { font:inherit; font-weight:700; border:0; border-radius:999px; padding:10px 20px; cursor:pointer; background:var(--mag); color:#fff; }
+  button.ghost { background:#fff; color:var(--teal); border:2px solid var(--teal); padding:8px 16px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > * { flex:1; min-width:140px; }
+  .muted { color:#5b6b70; font-size:12px; }
+  .err { background:#fde8ef; color:#8a0b4f; border-radius:8px; padding:10px 12px; font-size:13px; margin-top:10px; white-space:pre-wrap; }
+  .ok { background:#e8f6ea; color:#1d5b26; border-radius:8px; padding:10px 12px; font-size:13px; margin-top:10px; }
+  .flag { background:#fff7dc; border-left:4px solid var(--yel); padding:8px 12px; border-radius:6px; font-size:13px; margin:6px 0; }
+  .ev { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:6px 0; display:flex; gap:10px; align-items:flex-start; }
+  .ev .meta { font-size:12px; color:#5b6b70; }
+  .ev select { width:auto; padding:4px 8px; font-size:12px; }
+  .group { font-size:12px; font-weight:700; color:var(--teal); margin:12px 0 2px; text-transform:uppercase; letter-spacing:.5px; }
+  .sess { background:var(--pg); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .sess .row > * { min-width:110px; }
+  .opt { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .opt.sel { border-color:var(--mag); box-shadow:0 0 0 2px #d7028722; }
+  .opt .count { font-size:11px; color:#5b6b70; margin-top:4px; }
+  .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width:900px) { .split { grid-template-columns:1fr; } }
+  iframe { width:100%; height:900px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .hide { display:none !important; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--ice); color:var(--teal); }
+  .checks label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; font-weight:600; }
+  table.due td { padding:4px 8px 4px 0; font-size:13px; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>KC Event Campaigns</h1>
+    <div class="sub">Email · SMS · Social → straight into ClickUp for Kidcreate Studio events</div>
+  </div>
+</header>
+<main>
+
+  <!-- 0. Passcode -->
+  <section class="card" id="gate">
+    <h2><span class="step">🔒</span>Passcode</h2>
+    <div class="row">
+      <div><input type="password" id="pass" placeholder="Passcode from Amy"></div>
+      <div style="flex:0"><button id="enter">Enter</button></div>
+    </div>
+    <div id="ready" class="muted" style="margin-top:8px"></div>
+    <div id="gateErr" class="err hide"></div>
+  </section>
+
+  <div id="app" class="hide">
+
+    <!-- 1. Location + services -->
+    <section class="card">
+      <h2><span class="step">1</span>Studio and services</h2>
+      <div class="row">
+        <div>
+          <label>Studio</label>
+          <select id="loc"></select>
+        </div>
+        <div>
+          <label>Services this studio has (check ClickUp or HoneyBook)</label>
+          <div class="checks" style="padding-top:6px">
+            <label><input type="checkbox" id="svcEmail"> Email</label>
+            <label><input type="checkbox" id="svcSms"> SMS</label>
+            <label><input type="checkbox" id="svcSocial"> Social</label>
+          </div>
+        </div>
+      </div>
+      <div id="locErr" class="err hide"></div>
+    </section>
+
+    <!-- 2. Events -->
+    <section class="card">
+      <h2><span class="step">2</span>Pick the event(s)</h2>
+      <div class="muted">Mark each session <b>Promote</b> (the main event) or <b>Also mention</b> (a smaller callout). Leave the rest on Skip.</div>
+      <div id="events"><div class="muted" style="margin-top:8px">Choose a studio to load its upcoming events.</div></div>
+    </section>
+
+    <!-- 3. Details -->
+    <section class="card hide" id="detailsCard">
+      <h2><span class="step">3</span>Details from MyStudio</h2>
+      <div class="muted">Open each MyStudio page and fill in the time, price and spots left. The description comes from the ClickUp card.</div>
+      <div id="sessions"></div>
+      <div class="row">
+        <div>
+          <label>Image URL (from the kid-create bucket)</label>
+          <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
+        </div>
+        <div>
+          <label>What's in the photo? (one line)</label>
+          <input type="text" id="imgNote" placeholder="e.g. school-age kids rolling out clay">
+        </div>
+      </div>
+      <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
+      <label>Anything Amy asked you to include? (optional)</label>
+      <input type="text" id="notes" placeholder='e.g. "also mention the 11/5 class", "no price in the SMS"'>
+      <div style="margin-top:14px"><button id="gen">Generate</button> <span id="genStatus" class="muted"></span></div>
+      <div id="genErr" class="err hide"></div>
+    </section>
+
+    <!-- 4. Results -->
+    <section id="results" class="hide">
+      <div class="card" id="angleCard"></div>
+
+      <div class="card" id="emailCard">
+        <h2><span class="step">4</span>Email</h2>
+        <div class="split">
+          <div>
+            <label>Subject line (pick one, or edit)</label>
+            <div id="subjects"></div>
+            <label>Preheader</label>
+            <input type="text" id="preheader">
+            <label>Headline</label>
+            <input type="text" id="headline">
+            <label>Intro paragraph 1</label>
+            <textarea id="intro1"></textarea>
+            <label>Intro paragraph 2</label>
+            <textarea id="intro2"></textarea>
+            <label>Urgency bar (leave blank to hide)</label>
+            <input type="text" id="urgency">
+            <div style="margin-top:12px" class="row">
+              <div style="flex:0"><button class="ghost" id="copyHtml">Copy HTML</button></div>
+            </div>
+          </div>
+          <div><iframe id="preview" title="Email preview"></iframe></div>
+        </div>
+      </div>
+
+      <div class="card" id="smsCard">
+        <h2><span class="step">5</span>SMS</h2>
+        <div class="muted">The link and "Reply STOP to opt out" are added automatically. Counts include them.</div>
+        <div id="smsOpts"></div>
+        <label>Last call (send the day before; copy it into the SMS task if you use it)</label>
+        <textarea id="lastCall"></textarea>
+        <div class="count muted" id="lastCount"></div>
+      </div>
+
+      <div class="card" id="socialCard">
+        <h2><span class="step">6</span>Social caption</h2>
+        <textarea id="caption" style="min-height:160px"></textarea>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">7</span>Push to ClickUp</h2>
+        <label>Put the subtasks under this card</label>
+        <select id="parent"></select>
+        <table class="due" style="margin-top:10px">
+          <tr id="dueEmailRow"><td><b>EMAIL</b> due</td><td><input type="date" id="dueEmail"></td><td class="muted">5–7 days before, never Mon/Sat</td></tr>
+          <tr id="dueSmsRow"><td><b>SMS</b> due</td><td><input type="date" id="dueSms"></td><td class="muted">3 days before</td></tr>
+          <tr id="dueSocialRow"><td><b>SOCIAL</b> due</td><td><input type="date" id="dueSocial"></td><td class="muted">10 days before</td></tr>
+        </table>
+        <div id="dueNote" class="muted"></div>
+        <div style="margin-top:14px"><button id="push">Push to ClickUp</button> <span id="pushStatus" class="muted"></span></div>
+        <div id="pushOut"></div>
+        <div class="muted" style="margin-top:12px">Loading the email in MyStudio: paste the HTML in Template Builder, then clear Row → Border ("Solid") and set the padding under the hero image to 0. Nothing sends or posts until Amy approves.</div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const show = (el, on = true) => el.classList.toggle("hide", !on);
+let PASS = sessionStorage.getItem("kcPass") || "";
+let LOCS = {};               // id -> location config (from /api/kc/config + local link data)
+let EVENTS = [], PARENTS = {};
+let SEL = { promote: [], also: [] }; // arrays of event objects
+let COPY = null;             // last generated copy
+let state = { subjectIdx: 0, smsIdx: 0 };
+
+// Public, non-secret footer data per studio (mirrors netlify/functions/_kc.ts).
+const FOOT = {
+  cypress:   { name:"Kidcreate Studio Cypress", page:"https://www.kidcreate.com/locations/cypress", fb:"https://www.facebook.com/KidcreateStudioCypressTX", ig:"https://www.instagram.com/kidcreatestudio_cypresstx/", mail:"cypresstx@kidcreatestudio.com" },
+  broomfield:{ name:"Kidcreate Studio Broomfield", page:"https://www.kidcreate.com/locations/broomfield", fb:"https://www.facebook.com/kidcreatestudiobroomfieldco/", ig:"https://www.instagram.com/kidcreatestudio_broomfield/", mail:"broomfieldco@kidcreatestudio.com" },
+  denver:    { name:"Kidcreate Studio Denver South", page:"https://www.kidcreate.com/locations/denver", fb:"https://www.facebook.com/KidcreateStudioDenverCO", ig:"https://www.instagram.com/kidcreatestudio_denverco", mail:"denversouthco@kidcreatestudio.com" },
+};
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", "x-kc-pass": PASS, ...(opts.headers || {}) } });
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new Error((body && body.error) || `Error ${res.status}`);
+  return body;
+}
+
+// ---------- gate ----------
+async function loadConfig() {
+  const c = await fetch("/api/kc/config").then(r => r.json());
+  c.locations.forEach(l => LOCS[l.id] = l);
+  const r = c.ready, miss = [];
+  if (!r.claude) miss.push("Claude key");
+  if (!r.clickup) miss.push("ClickUp token");
+  if (!r.passcode) miss.push("passcode");
+  $("ready").textContent = miss.length ? `Not set up yet on Netlify: ${miss.join(", ")}. Ask Amy.` : "";
+  $("loc").innerHTML = `<option value="">Choose a studio…</option>` + c.locations.map(l => `<option value="${l.id}">${l.short}</option>`).join("");
+}
+async function enter() {
+  PASS = $("pass").value.trim() || PASS;
+  show($("gateErr"), false);
+  try {
+    await api("/api/kc/cards?loc=cypress"); // cheap auth check
+    sessionStorage.setItem("kcPass", PASS);
+    show($("gate"), false); show($("app"));
+  } catch (e) {
+    $("gateErr").textContent = e.message; show($("gateErr"));
+  }
+}
+$("enter").onclick = enter;
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") enter(); });
+
+// ---------- dates ----------
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+function evDate(ms) { // ClickUp due -> local calendar date of the event
+  const d = new Date(ms); return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+const usShort = (d) => `${DOW[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+
+function computeDue(ev) {
+  const today = new Date(); const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const win = [5, 6, 7].map(n => addDays(ev, -n)).filter(d => d.getDay() !== 1 && d.getDay() !== 6);
+  const pref = { 2: 0, 3: 0, 4: 0, 5: 1, 0: 2 };
+  win.sort((a, b) => (pref[a.getDay()] - pref[b.getDay()]) || (b - a));
+  let email = win[0], sms = addDays(ev, -3), social = addDays(ev, -10);
+  const notes = [];
+  const clamp = (d, label) => { if (d < t0) { notes.push(`${label} default (${usShort(d)}) already passed, so it's set to today.`); return t0; } return d; };
+  email = clamp(email, "EMAIL"); sms = clamp(sms, "SMS"); social = clamp(social, "SOCIAL");
+  return { email, sms, social, notes };
+}
+
+// ---------- events ----------
+function agesFromName(n) { const m = /\(([^)]*\d[^)]*)\)/.exec(n || ""); return m ? m[1] : ""; }
+function cleanName(n) { return (n || "").replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim(); }
+
+$("loc").onchange = async () => {
+  const id = $("loc").value; SEL = { promote: [], also: [] }; show($("detailsCard"), false); show($("results"), false);
+  if (!id) return;
+  $("events").innerHTML = `<div class="muted" style="margin-top:8px">Loading events…</div>`;
+  show($("locErr"), false);
+  try {
+    const j = await api(`/api/kc/cards?loc=${id}`);
+    EVENTS = j.events; PARENTS = j.parents;
+    renderEvents();
+  } catch (e) { $("events").innerHTML = ""; $("locErr").textContent = e.message; show($("locErr")); }
+};
+
+function renderEvents() {
+  if (!EVENTS.length) { $("events").innerHTML = `<div class="muted" style="margin-top:8px">No upcoming events with a MyStudio link in the next 75 days.</div>`; return; }
+  // Flag likely duplicates (same MyStudio event id twice).
+  const seen = {};
+  EVENTS.forEach(e => { const k = (e.link.match(/\/(\d+)\/\//) || [])[1]; e.dupOf = k && seen[k] ? seen[k] : null; if (k && !seen[k]) seen[k] = e.name; });
+  let html = "", lastGroup = null;
+  EVENTS.forEach((e, i) => {
+    const d = evDate(e.due);
+    const group = e.parent && PARENTS[e.parent] ? PARENTS[e.parent].name : usShort(d);
+    if (group !== lastGroup) { html += `<div class="group">${esc(group)}</div>`; lastGroup = group; }
+    html += `<div class="ev">
+      <select data-i="${i}" class="pick"><option value="">Skip</option><option value="promote">Promote</option><option value="also">Also mention</option></select>
+      <div><div><b>${esc(e.name)}</b> ${e.dupOf ? `<span class="pill">looks like a duplicate</span>` : ""}</div>
+      <div class="meta">${usShort(d)} · <a href="${e.link}" target="_blank" rel="noopener">MyStudio page ↗</a> · <a href="${e.url}" target="_blank" rel="noopener">ClickUp card ↗</a></div></div>
+    </div>`;
+  });
+  $("events").innerHTML = html;
+  document.querySelectorAll(".pick").forEach(s => s.onchange = updateSelection);
+}
+
+function updateSelection() {
+  SEL = { promote: [], also: [] };
+  document.querySelectorAll(".pick").forEach(s => { if (s.value) SEL[s.value].push(EVENTS[+s.dataset.i]); });
+  renderSessions();
+  show($("detailsCard"), SEL.promote.length > 0);
+}
+
+function sessionRow(e, kind, idx) {
+  const d = evDate(e.due);
+  const key = `${kind}${idx}`;
+  return `<div class="sess" data-key="${key}">
+    <div><span class="pill">${kind === "promote" ? "Promote" : "Also mention"}</span> <b>${esc(e.name)}</b> · ${usShort(d)} · <a href="${e.link}" target="_blank" rel="noopener">open MyStudio ↗</a></div>
+    <div class="row">
+      <div><label>Start time</label><input type="text" id="${key}_start" placeholder="8:30 AM"></div>
+      <div><label>End time</label><input type="text" id="${key}_end" placeholder="12:00 PM"></div>
+      <div><label>Ages</label><input type="text" id="${key}_ages" value="${esc(agesFromName(e.name))}"></div>
+      <div><label>Price</label><input type="text" id="${key}_price" placeholder="$50"></div>
+      <div><label>Spots left</label><input type="text" id="${key}_spots" placeholder="e.g. 7 left / Limited"></div>
+    </div>
+  </div>`;
+}
+function renderSessions() {
+  $("sessions").innerHTML = SEL.promote.map((e, i) => sessionRow(e, "promote", i)).join("") + SEL.also.map((e, i) => sessionRow(e, "also", i)).join("");
+}
+function readSession(e, kind, idx) {
+  const key = `${kind}${idx}`, v = (f) => ($(`${key}_${f}`)?.value || "").trim();
+  const d = evDate(e.due);
+  return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), spots: v("spots"), content: e.content || "", link: e.link };
+}
+
+$("img").oninput = () => { const u = $("img").value.trim(); $("imgPrev").src = u; show($("imgPrev"), /^https:\/\//.test(u)); };
+
+// ---------- generate ----------
+let SESS = [], ALSO = [];
+$("gen").onclick = async () => {
+  const services = { email: $("svcEmail").checked, sms: $("svcSms").checked, social: $("svcSocial").checked };
+  show($("genErr"), false);
+  if (!services.email && !services.sms && !services.social) { $("genErr").textContent = "Check at least one service in step 1."; show($("genErr")); return; }
+  SESS = SEL.promote.map((e, i) => readSession(e, "promote", i));
+  ALSO = SEL.also.map((e, i) => readSession(e, "also", i));
+  const missing = [...SESS, ...ALSO].filter(s => !s.start || !s.price).map(s => s.name);
+  if (missing.length) { $("genErr").textContent = `Add the start time and price for: ${missing.join(", ")}`; show($("genErr")); return; }
+  const img = $("img").value.trim();
+  if (services.email || services.social) { if (!/^https:\/\/storage\.googleapis\.com\//.test(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
+  $("gen").disabled = true; $("genStatus").textContent = "Writing… (about 20 seconds)";
+  try {
+    const j = await api("/api/kc/generate", { method: "POST", body: JSON.stringify({
+      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageNote: $("imgNote").value.trim(), notes: $("notes").value.trim(),
+    }) });
+    COPY = j.copy; COPY._services = services;
+    renderResults();
+    $("genStatus").textContent = "";
+  } catch (e) {
+    $("genErr").textContent = e.message; show($("genErr")); $("genStatus").textContent = "";
+  } finally { $("gen").disabled = false; }
+};
+
+// ---------- email template (locked) ----------
+function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function buildEmail() {
+  const em = COPY.email, f = FOOT[$("loc").value];
+  const subject = $("subjectEdit") ? $("subjectEdit").value : em.subjects[state.subjectIdx];
+  const b = em.band || {};
+  const cards = (em.cards || []).filter(c => SESS[c.sessionIndex]);
+  const also = (em.also || []).filter(a => ALSO[a.alsoIndex]);
+  const urg = $("urgency").value.trim();
+  const ctaLink = SESS[0].link;
+  const img = $("img").value.trim();
+  const cardHtml = cards.map((c, i) => `
+  <tr>
+    <td class="px" style="padding:${i === 0 ? 22 : 14}px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5FAEE; border-radius:10px;">
+        <tr>
+          <td style="padding:20px 22px; font-family:'Poppins',Arial,Helvetica,sans-serif;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1.5px; color:#4D7800;">${esc(c.label)}</div>
+            <div style="font-size:20px; font-weight:800; color:#10252C; margin-top:4px;">${esc(c.name)}</div>
+            <p style="margin:8px 0 14px; font-size:15px; line-height:1.55; color:#10252C;">${esc(c.description)}</p>
+            <a href="${esc(SESS[c.sessionIndex].link)}" target="_blank" rel="noopener noreferrer" style="font-size:15px; font-weight:700; color:#D70287;">${esc(c.linkText)} &rarr;</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`).join("");
+  const urgHtml = urg ? `
+  <tr>
+    <td class="px" style="padding:22px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="background:#FACB39; border-radius:8px; padding:12px 16px; font-family:'Poppins',Arial,Helvetica,sans-serif; font-size:14px; font-weight:700; color:#10252C;">
+            ${esc(urg)}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>` : "";
+  const alsoHtml = also.map(a => `
+  <tr>
+    <td class="px" style="padding:30px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#D8EEF1; border-radius:10px;">
+        <tr>
+          <td style="padding:20px 22px; font-family:'Poppins',Arial,Helvetica,sans-serif;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1.5px; color:#028A9B;">${esc(a.label)}</div>
+            <div style="font-size:19px; font-weight:800; color:#10252C; margin-top:4px;">${esc(a.name)}</div>
+            <div style="font-size:14px; font-weight:600; color:#10252C; margin-top:2px;">${esc(a.details)}</div>
+            <p style="margin:8px 0 14px; font-size:15px; line-height:1.55; color:#10252C;">${esc(a.description)}</p>
+            <a href="${esc(ALSO[a.alsoIndex].link)}" target="_blank" rel="noopener noreferrer" style="font-size:15px; font-weight:700; color:#D70287;">${esc(a.linkText)} &rarr;</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`).join("");
+  const band = (label, val, sub, w) => `
+          <td class="bandcell" width="${w}" align="center" valign="top" style="padding:16px 8px; font-family:'Poppins',Arial,Helvetica,sans-serif;">
+            <div class="bandlabel" style="font-size:11px; font-weight:700; letter-spacing:1.5px; color:#FACB39;">${label}</div>
+            <div class="bandval" style="font-size:18px; font-weight:700; color:#FFFFFF; line-height:1.3;">${esc(val)}</div>
+            <div class="bandsub" style="font-size:13px; color:#D8EEF1;">${esc(sub)}</div>
+          </td>`;
+  const ctaNote = (em.ctaNote || "").trim();
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>${esc(subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&amp;family=Finger+Paint&amp;display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0; padding:0; background:#FFFFFF; }
+  a { text-decoration:none; }
+  @media (max-width:600px) {
+    .wrap { width:100% !important; }
+    .px { padding-left:20px !important; padding-right:20px !important; }
+    .bandcell  { display:table-cell !important; padding:12px 4px !important; }
+    .bandlabel { font-size:9px !important; letter-spacing:0.8px !important; }
+    .bandval   { font-size:14px !important; line-height:1.35 !important; }
+    .bandsub   { font-size:11px !important; }
+    .h1 { font-size:26px !important; line-height:1.2 !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background:#FFFFFF;">
+
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#FFFFFF;">
+${esc($("preheader").value)}
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF;">
+<tr><td align="center">
+
+<table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; background:#FFFFFF;">
+
+  <tr>
+    <td align="center" style="background:#028A9B; padding:22px 20px;">
+      <a href="${f.page}" target="_blank" rel="noopener noreferrer">
+        <img src="https://storage.googleapis.com/kid-create/Kidcreate_Logo_Primary_Reversed%208.06.13%E2%80%AFAM.png" width="200" alt="${esc(f.name)}" style="display:block; max-width:100%; height:auto; border:0;">
+      </a>
+    </td>
+  </tr>
+
+  <tr>
+    <td style="padding:0; font-size:0; line-height:0;">
+      <img src="${esc(img)}" width="600" alt="${esc(em.imageAlt || "Kids making art at Kidcreate Studio")}" style="display:block; width:100%; max-width:100%; height:auto; border:0;">
+    </td>
+  </tr>
+
+  <tr>
+    <td style="background:#028A9B;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>${band("WHEN", b.date, b.time, "34%")}${band("AGES", b.ages, b.agesSub, "33%")}${band("PRICE", b.price, b.priceSub, "33%")}
+        </tr>
+      </table>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="px" style="padding:34px 40px 8px; font-family:'Poppins',Arial,Helvetica,sans-serif;">
+      <div class="h1" style="font-size:30px; font-weight:800; line-height:1.2; color:#10252C;">${esc($("headline").value)}</div>
+      <p style="margin:16px 0 0; font-size:16px; line-height:1.6; color:#10252C;">${esc($("intro1").value)}</p>
+      ${$("intro2").value.trim() ? `<p style="margin:12px 0 0; font-size:16px; line-height:1.6; color:#10252C;">${esc($("intro2").value)}</p>` : ""}
+    </td>
+  </tr>
+${cardHtml}${urgHtml}
+  <tr>
+    <td align="center" class="px" style="padding:26px 40px 6px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" bgcolor="#D70287" style="border-radius:50px;">
+            <a href="${esc(ctaLink)}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:16px 38px; font-family:'Poppins',Arial,Helvetica,sans-serif; font-size:17px; font-weight:700; color:#FFFFFF; border-radius:50px;">Reserve Your Spot</a>
+          </td>
+        </tr>
+      </table>
+      ${ctaNote ? `<p style="margin:12px 0 0; font-family:'Poppins',Arial,Helvetica,sans-serif; font-size:13px; line-height:1.5; color:#10252C;">${esc(ctaNote)}</p>` : ""}
+    </td>
+  </tr>
+${alsoHtml}
+  <tr>
+    <td align="center" class="px" style="padding:32px 40px 34px;">
+      <div style="font-family:'Finger Paint','Comic Sans MS',cursive; font-size:22px; line-height:1.4; color:#028A9B;">Making a mess is the best at Kidcreate!</div>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="background:#10252C; padding:30px 24px; font-family:'Poppins',Arial,Helvetica,sans-serif;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="border:2px solid #B3D7CF; border-radius:50px;">
+            <a href="${f.page}#other-offerings" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:11px 26px; font-size:14px; font-weight:700; color:#FFFFFF;">Explore All Classes &amp; Events</a>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:18px; font-size:13px; color:#B3D7CF;">
+        <a href="${f.page}#upcoming-weekly-classes" target="_blank" rel="noopener noreferrer" style="color:#B3D7CF;">Classes</a>
+        &nbsp;&middot;&nbsp;
+        <a href="mailto:${f.mail}" target="_blank" rel="noopener noreferrer" style="color:#B3D7CF;">Contact</a>
+      </div>
+      <div style="margin-top:10px; font-size:13px; font-weight:700;">
+        <a href="${f.fb}" target="_blank" rel="noopener noreferrer" style="color:#FACB39;">Facebook</a>
+        &nbsp;&middot;&nbsp;
+        <a href="${f.ig}" target="_blank" rel="noopener noreferrer" style="color:#FACB39;">Instagram</a>
+      </div>
+      <div style="margin-top:14px; font-size:12px; color:#B3D7CF;">${esc(f.name)}</div>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+`;
+}
+
+// ---------- results ----------
+const optOut = "Reply STOP to opt out";
+function smsFull(t) { return `${t.trim()} ${SESS[0].link} ${optOut}`; }
+function segInfo(s) { const n = s.length; const seg = n <= 160 ? 1 : Math.ceil(n / 153); return `${n} characters · ${seg} segment${seg > 1 ? "s" : ""}`; }
+
+function renderResults() {
+  const c = COPY, svc = c._services;
+  show($("results"));
+  // Angle + flags
+  $("angleCard").innerHTML = `<h2><span class="step">✓</span>Angle: ${esc(c.angle || "")}</h2><div class="muted">${esc(c.angleWhy || "")}</div>` +
+    (c.flags || []).map(f => `<div class="flag">⚠️ ${esc(f)}</div>`).join("") +
+    EVENTS.filter(e => e.dupOf && [...SEL.promote, ...SEL.also].includes(e)).map(e => `<div class="flag">⚠️ "${esc(e.name)}" looks like a duplicate card of "${esc(e.dupOf)}".</div>`).join("");
+
+  // Email
+  show($("emailCard"), !!(svc.email && c.email));
+  show($("dueEmailRow"), !!(svc.email && c.email));
+  if (svc.email && c.email) {
+    state.subjectIdx = c.email.recommended || 0;
+    $("subjects").innerHTML = c.email.subjects.map((s, i) => `<div class="opt ${i === state.subjectIdx ? "sel" : ""}" data-i="${i}"><label style="margin:0;font-weight:600"><input type="radio" name="subj" value="${i}" ${i === state.subjectIdx ? "checked" : ""}> ${esc(s)} ${i === (c.email.recommended || 0) ? '<span class="pill">recommended</span>' : ""}</label><div class="count">${s.length} characters</div></div>`).join("") +
+      `<label>Final subject line</label><input type="text" id="subjectEdit" value="${esc(c.email.subjects[state.subjectIdx])}">`;
+    document.querySelectorAll('input[name=subj]').forEach(r => r.onchange = () => {
+      state.subjectIdx = +r.value; $("subjectEdit").value = c.email.subjects[state.subjectIdx];
+      document.querySelectorAll("#subjects .opt").forEach(o => o.classList.toggle("sel", +o.dataset.i === state.subjectIdx)); refreshPreview();
+    });
+    $("preheader").value = c.email.preheader || ""; $("headline").value = c.email.headline || "";
+    $("intro1").value = c.email.intro1 || ""; $("intro2").value = c.email.intro2 || ""; $("urgency").value = c.email.urgency || "";
+    ["subjectEdit", "preheader", "headline", "intro1", "intro2", "urgency"].forEach(id => $(id).oninput = refreshPreview);
+    refreshPreview();
+  }
+
+  // SMS
+  show($("smsCard"), !!(svc.sms && c.sms));
+  show($("dueSmsRow"), !!(svc.sms && c.sms));
+  if (svc.sms && c.sms) {
+    const rec = c.sms.recommended || "A";
+    state.smsIdx = Math.max(0, c.sms.options.findIndex(o => o.label === rec));
+    $("smsOpts").innerHTML = c.sms.options.map((o, i) => `<div class="opt ${i === state.smsIdx ? "sel" : ""}" data-i="${i}">
+      <label style="margin:0"><input type="radio" name="sms" value="${i}" ${i === state.smsIdx ? "checked" : ""}> Option ${esc(o.label)} ${o.label === rec ? '<span class="pill">recommended</span>' : ""}</label>
+      <textarea id="sms${i}">${esc(o.text)}</textarea><div class="count" id="sms${i}c"></div></div>`).join("");
+    c.sms.options.forEach((o, i) => { const upd = () => $(`sms${i}c`).textContent = segInfo(smsFull($(`sms${i}`).value)); $(`sms${i}`).oninput = upd; upd(); });
+    document.querySelectorAll('input[name=sms]').forEach(r => r.onchange = () => { state.smsIdx = +r.value; document.querySelectorAll("#smsOpts .opt").forEach(o => o.classList.toggle("sel", +o.dataset.i === state.smsIdx)); });
+    $("lastCall").value = c.sms.lastCall || "";
+    const lu = () => $("lastCount").textContent = segInfo(smsFull($("lastCall").value)); $("lastCall").oninput = lu; lu();
+  }
+
+  // Social
+  show($("socialCard"), !!(svc.social && c.social));
+  show($("dueSocialRow"), !!(svc.social && c.social));
+  if (svc.social && c.social) $("caption").value = c.social.caption || "";
+
+  // Parent card + due dates
+  const chosen = [...SEL.promote];
+  const parents = [...new Set(chosen.map(e => e.parent).filter(p => p && PARENTS[p]))];
+  const opts = [];
+  parents.forEach(p => opts.push({ id: p, label: `${PARENTS[p].name} (group card)` }));
+  chosen.forEach(e => opts.push({ id: e.id, label: e.name }));
+  $("parent").innerHTML = opts.map(o => `<option value="${o.id}">${esc(o.label)}</option>`).join("");
+  const first = chosen.map(e => evDate(e.due)).sort((a, b) => a - b)[0];
+  const due = computeDue(first);
+  $("dueEmail").value = ymd(due.email); $("dueSms").value = ymd(due.sms); $("dueSocial").value = ymd(due.social);
+  $("dueNote").textContent = due.notes.join(" ");
+  $("pushOut").innerHTML = "";
+  $("results").scrollIntoView({ behavior: "smooth" });
+}
+function refreshPreview() { $("preview").srcdoc = buildEmail(); }
+
+$("copyHtml").onclick = async () => { await navigator.clipboard.writeText(buildEmail()); $("copyHtml").textContent = "Copied ✓"; setTimeout(() => $("copyHtml").textContent = "Copy HTML", 1500); };
+
+// ---------- push ----------
+$("push").onclick = async () => {
+  const svc = COPY._services, body = { loc: $("loc").value, parentId: $("parent").value, dueDates: {} };
+  if (svc.email && COPY.email) { body.email = { subject: $("subjectEdit").value.trim(), html: buildEmail() }; body.dueDates.email = $("dueEmail").value; }
+  if (svc.sms && COPY.sms) { body.sms = { text: smsFull($(`sms${state.smsIdx}`).value) }; body.dueDates.sms = $("dueSms").value; }
+  if (svc.social && COPY.social) { body.social = { caption: $("caption").value.trim(), imageUrl: $("img").value.trim() }; body.dueDates.social = $("dueSocial").value; }
+  $("push").disabled = true; $("pushStatus").textContent = "Pushing…"; $("pushOut").innerHTML = "";
+  try {
+    const j = await api("/api/kc/push", { method: "POST", body: JSON.stringify(body) });
+    $("pushOut").innerHTML = `<div class="${j.ok ? "ok" : "err"}">Under <a href="${j.parent.url}" target="_blank" rel="noopener">${esc(j.parent.name)}</a>:<br>` +
+      j.results.map(r => r.action === "failed" ? `✗ ${r.name}: ${esc(r.error)}` : `✓ <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a> ${r.action}`).join("<br>") + `</div>`;
+  } catch (e) { $("pushOut").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  finally { $("push").disabled = false; $("pushStatus").textContent = ""; }
+};
+
+// ---------- boot ----------
+loadConfig().then(() => { if (PASS) { $("pass").value = PASS; enter(); } });
+})();
+</script>
+</body>
+</html>
