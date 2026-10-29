@@ -2,7 +2,7 @@
 // No secrets live in this file. Keys come from Netlify env vars:
 //   ANTHROPIC_API_KEY  — already used by generate-email
 //   CLICKUP_API_TOKEN  — (CLICKUP_TOKEN / CLICKUP_API_KEY also accepted)
-//   KC_APP_PASSCODE    — shared passcode Randi types in; the KC functions fail closed without it
+//   KC_APP_PASSCODE    — optional; if set, the KC functions require it
 //   KC_MODEL           — optional model override
 
 export const RANDI_ID = 82087506;
@@ -82,10 +82,11 @@ export const json = (obj: unknown, status = 200) =>
     headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
   });
 
-// Fails closed: no passcode configured = nobody gets in.
+// Optional passcode: open by default (Amy's call, Oct 2026). If KC_APP_PASSCODE is ever set,
+// every KC function starts requiring it.
 export function checkPass(req: Request): Response | null {
   const pass = env("KC_APP_PASSCODE");
-  if (!pass) return json({ error: "KC_APP_PASSCODE is not set on this Netlify site yet." }, 503);
+  if (!pass) return null;
   const got = req.headers.get("x-kc-pass") || "";
   if (got !== pass) return json({ error: "Wrong passcode." }, 401);
   return null;
