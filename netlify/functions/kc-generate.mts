@@ -109,7 +109,8 @@ EXTRA INSTRUCTIONS FROM AMY/RANDI: ${b.notes || "(none)"}`;
       model: env("KC_MODEL") || MODEL_DEFAULT,
       max_tokens: 4000,
       // This model thinks by default; with thinking on it used the whole budget and wrote no answer.
-      thinking: { type: "disabled" },
+      // "between_tools" is this model's way of saying "don't think before responding".
+      thinking: { type: "between_tools" },
       system: RULES,
       messages: [{ role: "user", content: user }],
     }),
