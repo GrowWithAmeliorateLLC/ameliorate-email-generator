@@ -185,10 +185,12 @@ function money(cost: string): string {
   return Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`;
 }
 
-// Public MyStudio event feed (the same call the studio's own event pages make).
-// Returns event_id -> { start, end, price } for every event the studio has published.
-export async function mystudioEvents(company: string): Promise<Record<string, { start: string; end: string; price: string; date: string }>> {
-  const qs = new URLSearchParams({ companyid: company, page_from: "E", event_id: "" });
+// Public MyStudio event feed (the same calls the studio's own event pages make).
+// The list call returns only top-level events/groups; calling it again with a group's id returns
+// that group's dated sessions. So: list, then fetch every top-level id in parallel.
+// Returns event_id -> { start, end, price, date } for every dated event the studio has published.
+async function msCall(company: string, eventId: string): Promise<any> {
+  const qs = new URLSearchParams({ companyid: company, page_from: "E", event_id: eventId });
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 6000);
   try {
@@ -196,25 +198,31 @@ export async function mystudioEvents(company: string): Promise<Record<string, { 
       headers: { Accept: "application/json" },
       signal: ctrl.signal,
     });
-    const j: any = await res.json();
-    if (j?.status !== "Success") throw new Error(`MyStudio said ${j?.status || res.status}`);
-    const out: Record<string, any> = {};
-    const walk = (o: any) => {
-      if (!o || typeof o !== "object") return;
-      if (Array.isArray(o)) { o.forEach(walk); return; }
-      if (o.event_id && o.event_begin_dt) {
-        out[String(o.event_id)] = {
-          start: clock(o.event_begin_dt),
-          end: clock(o.event_end_dt),
-          price: money(o.event_cost),
-          date: String(o.event_begin_dt).slice(0, 10),
-        };
-      }
-      for (const k of Object.keys(o)) if (o[k] && typeof o[k] === "object") walk(o[k]);
-    };
-    walk(j.msg);
-    return out;
+    return await res.json();
   } finally {
     clearTimeout(t);
   }
+}
+
+export async function mystudioEvents(company: string): Promise<Record<string, { start: string; end: string; price: string; date: string }>> {
+  const top = await msCall(company, "");
+  if (top?.status !== "Success" || !Array.isArray(top.msg)) throw new Error(`MyStudio said ${top?.status || "no data"}`);
+  const ids = [...new Set(top.msg.map((e: any) => String(e.event_id || "")).filter(Boolean))].slice(0, 25) as string[];
+  const groups = await Promise.allSettled(ids.map((id) => msCall(company, id)));
+  const out: Record<string, any> = {};
+  const walk = (o: any) => {
+    if (!o || typeof o !== "object") return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (o.event_id && /^\d{4}-\d{2}-\d{2} /.test(o.event_begin_dt || "") && !String(o.event_begin_dt).startsWith("0000")) {
+      out[String(o.event_id)] = {
+        start: clock(o.event_begin_dt),
+        end: clock(o.event_end_dt),
+        price: money(o.event_cost),
+        date: String(o.event_begin_dt).slice(0, 10),
+      };
+    }
+    for (const k of Object.keys(o)) if (o[k] && typeof o[k] === "object") walk(o[k]);
+  };
+  for (const g of groups) if (g.status === "fulfilled" && g.value?.status === "Success") walk(g.value.msg);
+  return out;
 }
