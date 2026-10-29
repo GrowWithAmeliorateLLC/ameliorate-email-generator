@@ -210,9 +210,10 @@ async function loadConfig() {
   const r = c.ready, miss = [];
   if (!r.claude) miss.push("Claude key");
   if (!r.clickup) miss.push("ClickUp token");
-  if (!r.passcode) miss.push("passcode");
   $("ready").textContent = miss.length ? `Not set up yet on Netlify: ${miss.join(", ")}. Ask Amy.` : "";
+  if (miss.length) { $("locErr").textContent = `Not set up yet on Netlify: ${miss.join(", ")}. Ask Amy.`; show($("locErr")); }
   $("loc").innerHTML = `<option value="">Choose a studio…</option>` + c.locations.map(l => `<option value="${l.id}">${l.short}</option>`).join("");
+  return c;
 }
 async function enter() {
   PASS = $("pass").value.trim() || PASS;
@@ -604,7 +605,10 @@ $("push").onclick = async () => {
 };
 
 // ---------- boot ----------
-loadConfig().then(() => { if (PASS) { $("pass").value = PASS; enter(); } });
+loadConfig().then((c) => {
+  if (!c.ready.passcode) { show($("gate"), false); show($("app")); return; } // no passcode set: open
+  if (PASS) { $("pass").value = PASS; enter(); }
+});
 })();
 </script>
 </body>
