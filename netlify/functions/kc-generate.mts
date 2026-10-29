@@ -107,7 +107,9 @@ EXTRA INSTRUCTIONS FROM AMY/RANDI: ${b.notes || "(none)"}`;
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: env("KC_MODEL") || MODEL_DEFAULT,
-      max_tokens: 3000,
+      max_tokens: 4000,
+      // This model thinks by default; with thinking on it used the whole budget and wrote no answer.
+      thinking: { type: "disabled" },
       system: RULES,
       messages: [{ role: "user", content: user }],
     }),
