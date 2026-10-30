@@ -11,6 +11,9 @@
 [functions."kc-generate"]
   timeout = 26
 
+[functions."cn-generate"]
+  timeout = 26
+
 [[headers]]
   for = "/*"
   [headers.values]
