@@ -121,6 +121,13 @@
         <h2><span class="step">4</span>Email</h2>
         <div class="split">
           <div>
+            <label>Sending from</label>
+            <select id="platform">
+              <option value="ll">LineLeader (safe version)</option>
+              <option value="mc">Mailchimp</option>
+              <option value="other">Other / HubSpot / CRM</option>
+            </select>
+            <div class="muted" id="platformNote"></div>
             <label>Subject line (pick one, or edit)</label>
             <div id="subjects"></div>
             <label>Preheader</label>
@@ -174,7 +181,7 @@
         <div id="dueNote" class="muted"></div>
         <div style="margin-top:14px"><button id="push">Push to ClickUp</button> <span id="pushStatus" class="muted"></span></div>
         <div id="pushOut"></div>
-        <div class="muted" style="margin-top:12px">Load the HTML into the center's email platform (CRM, Mailchimp or HTML block). Nothing sends or posts until Amy approves.</div>
+        <div class="muted" style="margin-top:12px">Load the HTML into the center's email platform (CRM, Mailchimp or HTML block).</div>
       </div>
     </section>
   </div>
@@ -356,6 +363,11 @@ $("gen").onclick = async () => {
 // ---------- email template (locked) ----------
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function buildEmail() {
+  const raw = buildEmailRaw();
+  const p = $("platform").value;
+  return (p === "ll" || p === "other") ? safeEmail(raw) : raw;
+}
+function buildEmailRaw() {
   const em = COPY.email, L = LOCS[$("loc").value];
   const LOGO = `${location.origin}/cn/logo.png`;
   const F = "'Barlow',Arial,Helvetica,sans-serif", FD = "'Barlow Condensed','Arial Narrow',Arial,sans-serif";
@@ -535,6 +547,34 @@ ${alsoHtml}
 `;
 }
 
+
+// LineLeader bulk sends sometimes arrive as image-only, and Gmail on Windows has shown broken layouts.
+// LineLeader never found the cause, so this strips everything mail platforms commonly mangle:
+// no <style>/<link> (web fonts, media queries), no rounded corners or overflow tricks, only plain
+// ASCII (other characters become HTML entities), and short lines (SMTP's 998-char line limit can
+// split a tag mid-way). Layout is all tables with inline styles and width attributes.
+function safeEmail(html) {
+  let h = html;
+  h = h.replace(/<style[\s\S]*?<\/style>\s*/gi, "");
+  h = h.replace(/<link[^>]*>\s*/gi, "");
+  h = h.replace(/<meta name="(color-scheme|supported-color-schemes)"[^>]*>\s*/gi, "");
+  h = h.replace(/font-family:[^;"]*;?/gi, "font-family:Arial,Helvetica,sans-serif;");
+  h = h.replace(/\s*border-radius:[^;"]*;?/gi, "");
+  h = h.replace(/\s*overflow:hidden;?/gi, "");
+  h = h.replace(/\s*text-transform:uppercase;?/gi, "");
+  // fixed 600px box -> fluid up to 600px (no media query to rely on)
+  h = h.replace('class="wrap" width="600"', 'class="wrap" width="600" align="center"')
+       .replace('style="width:600px; background:#FFFFFF;', 'style="width:100%; max-width:600px; background:#FFFFFF;');
+  // uppercase the eyebrow text itself, since text-transform was removed
+  h = h.replace(/(letter-spacing:3px;[^>]*>)([^<]*)/, (m, a, b) => a + b.toUpperCase());
+  // ASCII only
+  h = h.replace(/[^\x00-\x7F]/gu, (c) => `&#${c.codePointAt(0)};`);
+  // short lines: break between tags, then between style declarations on any line still too long
+  h = h.replace(/>\s*</g, ">\n<");
+  h = h.split("\n").map((line) => line.length <= 400 ? line : line.replace(/; /g, ";\n  ")).join("\n");
+  return h;
+}
+
 // ---------- results ----------
 const optOut = "Reply STOP to opt out";
 function smsFull(t) { return `${t.trim()} ${SESS[0].link} ${optOut}`; }
@@ -565,6 +605,9 @@ function renderResults() {
     $("intro1").value = c.email.intro1 || ""; $("intro2").value = c.email.intro2 || ""; $("urgency").value = c.email.urgency || "";
     ["subjectEdit", "preheader", "eyebrow", "headline", "subheadline", "intro1", "intro2", "urgency"].forEach(id => $(id).oninput = refreshPreview);
     $("ctaText").onchange = refreshPreview;
+    try { const saved = localStorage.getItem("cnPlatform:" + $("loc").value); if (saved) $("platform").value = saved; } catch {}
+    $("platform").onchange = () => { try { localStorage.setItem("cnPlatform:" + $("loc").value, $("platform").value); } catch {} platformNote(); refreshPreview(); };
+    platformNote();
     refreshPreview();
   }
 
@@ -601,6 +644,11 @@ function renderResults() {
   $("dueNote").textContent = due.notes.join(" ");
   $("pushOut").innerHTML = "";
   $("results").scrollIntoView({ behavior: "smooth" });
+}
+function platformNote() {
+  const p = $("platform").value;
+  $("platformNote").textContent = p === "mc" ? "Full design (web fonts, rounded cards, mobile tweaks)."
+    : "Safe version: plain inline styles, Arial, no style block, short lines. Built to survive LineLeader's bulk sends; still send yourself a test first.";
 }
 function refreshPreview() { $("preview").srcdoc = buildEmail(); }
 

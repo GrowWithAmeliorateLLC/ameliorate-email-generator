@@ -204,12 +204,15 @@ async function msCall(company: string, eventId: string): Promise<any> {
   }
 }
 
-export async function mystudioEvents(company: string): Promise<Record<string, { start: string; end: string; price: string; date: string }>> {
+export async function mystudioEvents(company: string): Promise<Record<string, { start: string; end: string; price: string; date: string; group: string }>> {
   const top = await msCall(company, "");
   if (top?.status !== "Success" || !Array.isArray(top.msg)) throw new Error(`MyStudio said ${top?.status || "no data"}`);
   const ids = [...new Set(top.msg.map((e: any) => String(e.event_id || "")).filter(Boolean))].slice(0, 25) as string[];
+  // MyStudio group titles are standard (e.g. "No School Day Camps & Classes", "Other Classes"); the page uses them to rank events.
+  const titles: Record<string, string> = Object.fromEntries(top.msg.map((e: any) => [String(e.event_id || ""), String(e.event_title || "")]));
   const groups = await Promise.allSettled(ids.map((id) => msCall(company, id)));
   const out: Record<string, any> = {};
+  let group = "";
   const walk = (o: any) => {
     if (!o || typeof o !== "object") return;
     if (Array.isArray(o)) { o.forEach(walk); return; }
@@ -219,10 +222,13 @@ export async function mystudioEvents(company: string): Promise<Record<string, { 
         end: clock(o.event_end_dt),
         price: money(o.event_cost),
         date: String(o.event_begin_dt).slice(0, 10),
+        group,
       };
     }
     for (const k of Object.keys(o)) if (o[k] && typeof o[k] === "object") walk(o[k]);
   };
-  for (const g of groups) if (g.status === "fulfilled" && g.value?.status === "Success") walk(g.value.msg);
+  groups.forEach((g, i) => {
+    if (g.status === "fulfilled" && g.value?.status === "Success") { group = titles[ids[i]] || ""; walk(g.value.msg); }
+  });
   return out;
 }
