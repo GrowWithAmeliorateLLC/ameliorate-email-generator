@@ -261,13 +261,18 @@ $("loc").onchange = async () => {
   } catch (e) { $("events").innerHTML = ""; $("locErr").textContent = e.message; show($("locErr")); }
 };
 
-const TIERS = ["1 · Camps", "2 · Kids Night Out / Parents Night Out", "3 · Classes and everything else"];
+const TIERS = ["1 · Camps", "2 · Kids Night Out / Parents Night Out / Parent's Time Off", "3 · Classes and everything else"];
 function tierOf(e) {
-  const s = `${e.name} ${e.parent && PARENTS[e.parent] ? PARENTS[e.parent].name : ""} ${e.ms && e.ms.group ? e.ms.group : ""}`;
-  if (/camp|no[\s-]*school|school'?s?\s*out|pd\s*day|pro-?d|break\b/i.test(s)) return 0;
-  if (/night\s*out|kids'?\s*night|parents'?\s*night|\bpno\b|\bkno\b|date\s*night/i.test(s)) return 1;
+  const name = e.name || "";
+  const ctx = `${e.parent && PARENTS[e.parent] ? PARENTS[e.parent].name : ""} ${e.ms && e.ms.group ? e.ms.group : ""}`;
+  const CAMP = /camp|no[\s-]*school|school'?s?\s*out|pd\s*day|pro-?d|break\b/i;
+  const NIGHT = /night\s*out|kids'?\s*night|parents?'?\s*night|parents?'?s?\s*time\s*off|\bpno\b|\bkno\b|date\s*night/i;
+  if (/camp/i.test(name)) return 0;           // the name says camp
+  if (NIGHT.test(name) || NIGHT.test(ctx)) return 1;  // kids / parents night out, parent's time off
+  if (CAMP.test(name) || CAMP.test(ctx)) return 0;    // MyStudio "No School Day Camps & Classes" group, camp parent cards
   return 2;
 }
+
 function renderEvents() {
   if (!EVENTS.length) { $("events").innerHTML = `<div class="muted" style="margin-top:8px">No upcoming events with a MyStudio link in the next 75 days.</div>`; return; }
   // Flag likely duplicates (same MyStudio event id twice).
