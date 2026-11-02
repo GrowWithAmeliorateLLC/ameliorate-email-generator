@@ -6,7 +6,7 @@ export default async () => {
   return json({
     locations: Object.values(LOCATIONS).map((l) => ({
       id: l.id, name: l.name, short: l.short, page: l.page,
-      facebook: l.facebook, instagram: l.instagram, email: l.email, socialOnly: !!l.socialOnly,
+      facebook: l.facebook, instagram: l.instagram, email: l.email, socialOnly: !!l.socialOnly, cadence: l.cadence || null,
     })),
     ready: {
       claude: !!env("ANTHROPIC_API_KEY"),

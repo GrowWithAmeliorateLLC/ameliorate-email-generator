@@ -160,9 +160,9 @@
         <label>Put the subtasks under this card</label>
         <select id="parent"></select>
         <table class="due" style="margin-top:10px">
-          <tr id="dueEmailRow"><td><b>EMAIL</b> due</td><td><input type="date" id="dueEmail"></td><td class="muted">5–7 days before, never Mon/Sat</td></tr>
-          <tr id="dueSmsRow"><td><b>SMS</b> due</td><td><input type="date" id="dueSms"></td><td class="muted">3 days before</td></tr>
-          <tr id="dueSocialRow"><td><b>SOCIAL</b> due</td><td><input type="date" id="dueSocial"></td><td class="muted">10 days before</td></tr>
+          <tr id="dueEmailRow"><td><b>EMAIL</b> due</td><td><input type="date" id="dueEmail"></td><td class="muted" id="ruleEmail">5–7 days before, never Mon/Sat</td></tr>
+          <tr id="dueSmsRow"><td><b>SMS</b> due</td><td><input type="date" id="dueSms"></td><td class="muted" id="ruleSms">3 days before</td></tr>
+          <tr id="dueSocialRow"><td><b>SOCIAL</b> due</td><td><input type="date" id="dueSocial"></td><td class="muted" id="ruleSocial">10 days before</td></tr>
         </table>
         <div id="dueNote" class="muted"></div>
         <div style="margin-top:14px"><button id="push">Push to ClickUp</button> <span id="pushStatus" class="muted"></span></div>
@@ -231,15 +231,25 @@ const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 
 
 function computeDue(ev) {
   const today = new Date(); const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const win = [5, 6, 7].map(n => addDays(ev, -n)).filter(d => d.getDay() !== 1 && d.getDay() !== 6);
-  const pref = { 2: 0, 3: 0, 4: 0, 5: 1, 0: 2 };
-  win.sort((a, b) => (pref[a.getDay()] - pref[b.getDay()]) || (b - a));
-  let email = win[0], sms = addDays(ev, -3), social = addDays(ev, -10);
+  const cad = (LOCS[$("loc").value] || {}).cadence;
+  let email, sms, social;
+  if (cad) {
+    // Studio's own schedule. Email still avoids Mon/Sat: it moves one day earlier (Mon→Sun, Sat→Fri).
+    email = addDays(ev, -cad.email);
+    if (email.getDay() === 1 || email.getDay() === 6) email = addDays(email, -1);
+    sms = addDays(ev, -cad.sms); social = addDays(ev, -cad.social);
+  } else {
+    const win = [5, 6, 7].map(n => addDays(ev, -n)).filter(d => d.getDay() !== 1 && d.getDay() !== 6);
+    const pref = { 2: 0, 3: 0, 4: 0, 5: 1, 0: 2 };
+    win.sort((a, b) => (pref[a.getDay()] - pref[b.getDay()]) || (b - a));
+    email = win[0]; sms = addDays(ev, -3); social = addDays(ev, -10);
+  }
   const notes = [];
   const clamp = (d, label) => { if (d < t0) { notes.push(`${label} default (${usShort(d)}) already passed, so it's set to today.`); return t0; } return d; };
   email = clamp(email, "EMAIL"); sms = clamp(sms, "SMS"); social = clamp(social, "SOCIAL");
   return { email, sms, social, notes };
 }
+
 
 // ---------- events ----------
 function agesFromName(n) { const m = /\(([^)]*\d[^)]*)\)/.exec(n || ""); return m ? m[1] : ""; }
@@ -605,6 +615,10 @@ function renderResults() {
   const due = computeDue(first);
   $("dueEmail").value = ymd(due.email); $("dueSms").value = ymd(due.sms); $("dueSocial").value = ymd(due.social);
   $("dueNote").textContent = due.notes.join(" ");
+  const cad = (LOCS[$("loc").value] || {}).cadence;
+  $("ruleEmail").textContent = cad ? `${cad.email} days before, never Mon/Sat (this studio's schedule)` : "5–7 days before, never Mon/Sat";
+  $("ruleSms").textContent = cad ? `${cad.sms} days before (this studio's schedule)` : "3 days before";
+  $("ruleSocial").textContent = cad ? `${cad.social} days before (this studio's schedule)` : "10 days before";
   $("pushOut").innerHTML = "";
   $("results").scrollIntoView({ behavior: "smooth" });
 }

@@ -27,6 +27,7 @@ export interface Location {
   hashtags: string;
   notes: string; // rules Claude must follow for this studio
   socialOnly?: boolean; // Amy's rule: no email/SMS for this studio
+  cadence?: { email: number; social: number; sms: number }; // days before the event, when the studio asked for its own schedule
 }
 
 const L = (
@@ -118,6 +119,13 @@ const LIST: Location[] = [
     "#KidcreateWoodbury #WoodburyMN #TwinCitiesMoms #KidsArt #ThingsToDoWoodbury",
     "East-metro community voice. Never borrow Eden Prairie's language; different owner."),
 ];
+
+// Studio-requested send schedules (days before the event). Everyone else uses the default rules on the page.
+const CADENCE: Record<string, { email: number; social: number; sms: number }> = {
+  lakeview: { email: 20, social: 14, sms: 6 }, // owner request, 11/2/2026
+  "oak-park": { email: 20, social: 14, sms: 6 }, // owner request, 11/2/2026
+};
+for (const l of LIST) if (CADENCE[l.id]) l.cadence = CADENCE[l.id];
 
 export const LOCATIONS: Record<string, Location> = Object.fromEntries(LIST.map((l) => [l.id, l]));
 
