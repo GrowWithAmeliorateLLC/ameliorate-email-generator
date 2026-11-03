@@ -112,10 +112,11 @@
       <div id="singleImg">
         <label>Image URL (from the kid-create bucket)</label>
         <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
+        <div id="imgNote" class="muted"></div>
         <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
       </div>
       <div id="weekBox" class="hide">
-        <label>One image per camp (from the kid-create bucket). It goes on the camp's card and its SOCIAL task.</label>
+        <label>One image per camp (from the kid-create bucket). It goes on the camp's card and its SOCIAL task. The app fills in its best match by name, so check each one.</label>
         <div id="weekImgs"></div>
         <div class="row">
           <div><label>Days with nothing scheduled: title (optional)</label><input type="text" id="gapTitle" placeholder="Happy Thanksgiving!"></div>
@@ -279,7 +280,7 @@ function agesFromName(n) { const m = /\(([^)]*\d[^)]*)\)/.exec(n || ""); return 
 function cleanName(n) { return (n || "").replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim(); }
 
 $("loc").onchange = async () => {
-  const id = $("loc").value; SEL = { promote: [], also: [] }; show($("detailsCard"), false); show($("results"), false);
+  const id = $("loc").value; SEL = { promote: [], also: [] }; WIMG = {}; $("img").value = ""; $("imgNote").textContent = ""; show($("imgPrev"), false); show($("detailsCard"), false); show($("results"), false);
   const so = !!(LOCS[id] && LOCS[id].socialOnly);
   ["svcEmail", "svcSms"].forEach(k => { $(k).disabled = so; if (so) $(k).checked = false; });
   $("svcNote").textContent = so ? "Social only for this studio (no email or SMS)." : ""; show($("svcNote"), so);
@@ -335,6 +336,8 @@ function renderEvents() {
 function updateSelection() {
   SEL = { promote: [], also: [] };
   document.querySelectorAll(".pick").forEach(s => { if (s.value) SEL[s.value].push(EVENTS[+s.dataset.i]); });
+  const sug = (SEL.promote.find(e => e.img) || {}).img;
+  if (sug && !$("img").value.trim()) { $("img").value = sug; $("img").oninput(); $("imgNote").textContent = "Suggested from the kid-create bucket by event name. Check it's the right graphic."; }
   renderSessions();
   show($("detailsCard"), SEL.promote.length > 0);
 }
@@ -351,7 +354,7 @@ function sessionRow(e, kind, idx) {
       <div><label>Ages</label><input type="text" id="${key}_ages" value="${esc(agesFromName(e.name))}"></div>
       <div><label>Price</label><input type="text" id="${key}_price" placeholder="$50" value="${esc(ms.price || "")}"></div>
     </div>
-    ${e.ms ? `<div class="muted">✓ Time and price loaded from MyStudio</div>` : `<div class="flag">MyStudio didn't return this event. Type the time and price from its page.</div>`}
+    ${e.ms ? `<div class="muted">✓ Time and price loaded from MyStudio${e.ms.hidden ? " (this event is hidden from MyStudio's public list, so check it's meant to be promoted)" : ""}</div>` : `<div class="flag">MyStudio didn't return this event. Type the time and price from its page.</div>`}
   </div>`;
 }
 function renderSessions() {
@@ -382,6 +385,8 @@ function renderWeekImgs() {
   show($("singleImg"), !on); show($("weekBox"), on);
   if (!on) return;
   const names = weekCampNames();
+  // Prefill each camp's image with the app's suggestion from the kid-create bucket (Randi can change it).
+  SEL.promote.forEach(e => { const k = cleanName(e.name).toLowerCase(); if (!WIMG[k] && e.img) WIMG[k] = e.img; });
   $("weekImgs").innerHTML = names.length ? names.map((n, i) => `<div class="wev"><b>${esc(n)}</b>
     <input type="text" id="wimg${i}" data-name="${esc(n)}" placeholder="https://storage.googleapis.com/kid-create/..." value="${esc(WIMG[n.toLowerCase()] || "")}">
     <img id="wimg${i}p" class="${WIMG[n.toLowerCase()] ? "" : "hide"}" src="${esc(WIMG[n.toLowerCase()] || "")}"></div>`).join("")
@@ -450,11 +455,23 @@ $("gen").onclick = async () => {
   } else if (services.email || services.social) { if (!bucket(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
   $("gen").disabled = true; $("genStatus").textContent = week ? "Writing the week… (about 30–45 seconds)" : "Writing… (about 20–25 seconds)";
   try {
-    const j = await api("/api/kc/generate", { method: "POST", body: JSON.stringify({
-      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageUrl: week ? "" : img, notes: $("notes").value.trim(),
+    const req = (svc, extra = "") => api("/api/kc/generate", { method: "POST", body: JSON.stringify({
+      loc: $("loc").value, services: svc, sessions: SESS, also: ALSO, imageUrl: week ? "" : img,
+      notes: [$("notes").value.trim(), extra].filter(Boolean).join(" "),
       weekMode: week, weekEvents: WEEK.map(w => ({ name: w.name, sessionIndexes: w.idx, imageUrl: w.imageUrl })),
     }) });
-    COPY = j.copy; COPY._services = services; COPY._week = week;
+    let copy;
+    if (week && services.social && (services.email || services.sms)) {
+      // A whole week is too much writing for one call (the function stops at 26 seconds), so
+      // email + SMS go first, then the per-camp captions reuse the same angle.
+      const a = await req({ ...services, social: false });
+      $("genStatus").textContent = "Writing the social captions…";
+      const b = await req({ email: false, sms: false, social: true }, `Use this angle for every caption: ${a.copy.angle || ""}.`);
+      copy = { ...a.copy, social: b.copy.social, flags: [...(a.copy.flags || []), ...(b.copy.flags || [])].slice(0, 4) };
+    } else {
+      copy = (await req(services)).copy;
+    }
+    COPY = copy; COPY._services = services; COPY._week = week;
     renderResults();
     $("genStatus").textContent = "";
   } catch (e) {

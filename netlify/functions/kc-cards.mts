@@ -3,7 +3,7 @@
 // plus the parent cards they sit under (e.g. "NOV 3 CAMPS"), so the page can group them.
 // Each card also gets start/end time and price from the studio's public MyStudio event feed.
 import {
-  LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json, parseMyStudio, mystudioEvents,
+  LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json, parseMyStudio, mystudioEvents, mystudioLookup, suggestImages,
 } from "./_kc.js";
 
 export default async (req: Request) => {
@@ -66,7 +66,16 @@ export default async (req: Request) => {
     try { ms = await mystudioEvents(company); mystudio = { ok: true, company }; }
     catch (e: any) { mystudio = { ok: false, company, error: String(e.message || e) }; }
   }
-  const withTimes = mine.map((e) => ({ ...e, ms: ms[parseMyStudio(e.link)!.event] || null }));
+  // Cards the public feed didn't return (usually events hidden in MyStudio) get a direct lookup,
+  // so time + price still fill in. Runs in parallel, capped so the function stays fast.
+  if (mystudio.ok) {
+    const missing = [...new Set(mine.map((e) => parseMyStudio(e.link)!).filter((p) => !ms[p.event]).map((p) => `${p.token}|${p.event}`))].slice(0, 15);
+    const found = await Promise.allSettled(missing.map((k) => { const [tok, ev] = k.split("|"); return mystudioLookup(company!, tok, ev); }));
+    found.forEach((r, i) => { if (r.status === "fulfilled" && r.value) ms[missing[i].split("|")[1]] = r.value; });
+  }
+  // Suggested branded graphic per event name, from the kid-create bucket.
+  const imgs = await suggestImages([...new Set(mine.map((e) => e.name))]).catch(() => ({} as Record<string, string>));
+  const withTimes = mine.map((e) => ({ ...e, ms: ms[parseMyStudio(e.link)!.event] || null, img: imgs[e.name] || "" }));
 
   // Parent cards the events sit under (looked up if they fell outside the date window).
   const parentIds = [...new Set(withTimes.map((e) => e.parent).filter(Boolean))] as string[];

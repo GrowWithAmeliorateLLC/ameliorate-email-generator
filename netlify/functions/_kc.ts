@@ -172,9 +172,9 @@ export function fieldValue(task: any, id: string): string {
 }
 
 // MyStudio event links look like https://cp.mystudio.io/e/?=TOKEN/COMPANYID/EVENTID//STAMP
-export function parseMyStudio(link: string): { company: string; event: string } | null {
-  const m = /cp\.mystudio\.io\/e\/\?=[^/]+\/(\d+)\/(\d+)\//i.exec(link || "");
-  return m ? { company: m[1], event: m[2] } : null;
+export function parseMyStudio(link: string): { company: string; event: string; token: string } | null {
+  const m = /cp\.mystudio\.io\/e\/\?=([^/]+)\/(\d+)\/(\d+)\//i.exec(link || "");
+  return m ? { token: m[1], company: m[2], event: m[3] } : null;
 }
 
 // "2026-11-03 13:00:00" -> "1:00 PM"
@@ -197,8 +197,11 @@ function money(cost: string): string {
 // The list call returns only top-level events/groups; calling it again with a group's id returns
 // that group's dated sessions. So: list, then fetch every top-level id in parallel.
 // Returns event_id -> { start, end, price, date } for every dated event the studio has published.
-async function msCall(company: string, eventId: string): Promise<any> {
+async function msCall(company: string, eventId: string, token = ""): Promise<any> {
   const qs = new URLSearchParams({ companyid: company, page_from: "E", event_id: eventId });
+  // With the link's token + detail flag, MyStudio also returns events hidden from the public list
+  // (event_show_status "N"), which is what the event's own registration page does.
+  if (token) { qs.set("company_uuid", token); qs.set("detail_url_flag", "Y"); }
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 6000);
   try {
@@ -238,5 +241,81 @@ export async function mystudioEvents(company: string): Promise<Record<string, { 
   groups.forEach((g, i) => {
     if (g.status === "fulfilled" && g.value?.status === "Success") { group = titles[ids[i]] || ""; walk(g.value.msg); }
   });
+  return out;
+}
+
+
+// Fallback for a card whose event isn't in the public feed (hidden in MyStudio, e.g. Lakeview's
+// Gingerbread House party on 11/27/2026): look it up the way its own registration page does.
+export async function mystudioLookup(company: string, token: string, eventId: string) {
+  const j = await msCall(company, eventId, token);
+  let hit: any = null;
+  const walk = (o: any) => {
+    if (hit || !o || typeof o !== "object") return;
+    if (Array.isArray(o)) { o.forEach(walk); return; }
+    if (String(o.event_id) === eventId && /^\d{4}-\d{2}-\d{2} /.test(o.event_begin_dt || "") && !String(o.event_begin_dt).startsWith("0000")) {
+      hit = { start: clock(o.event_begin_dt), end: clock(o.event_end_dt), price: money(o.event_cost), date: String(o.event_begin_dt).slice(0, 10), group: "", hidden: o.event_show_status === "N" };
+      return;
+    }
+    for (const k of Object.keys(o)) if (o[k] && typeof o[k] === "object") walk(o[k]);
+  };
+  walk(j?.msg);
+  return hit;
+}
+
+// ---------- image suggestions from the kid-create bucket ----------
+// Kidcreate's branded event graphics live in gs://kid-create/branded images/, named like
+// "1134- Canvas   Clay Unit.png" or "3401-KC-Gabby s Dollhouse.png". The bucket listing is public.
+let BUCKET: { at: number; names: string[] } | null = null;
+async function brandedImages(): Promise<string[]> {
+  if (BUCKET && Date.now() - BUCKET.at < 30 * 60e3) return BUCKET.names;
+  const names: string[] = [];
+  let tok = "";
+  for (let i = 0; i < 5; i++) {
+    const u = `https://storage.googleapis.com/storage/v1/b/kid-create/o?prefix=${encodeURIComponent("branded images/")}&maxResults=1000&fields=nextPageToken,items(name)${tok ? `&pageToken=${tok}` : ""}`;
+    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 5000);
+    try {
+      const j: any = await (await fetch(u, { signal: ctrl.signal })).json();
+      names.push(...(j.items || []).map((x: any) => x.name));
+      tok = j.nextPageToken || "";
+    } finally { clearTimeout(t); }
+    if (!tok) break;
+  }
+  BUCKET = { at: Date.now(), names };
+  return names;
+}
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+function fileKey(n: string) {
+  let b = n.split("/").pop() || "";
+  b = b.replace(/\.(png|jpe?g|webp)$/i, "");
+  b = b.replace(/^(\d\s+\d\s+)?(\d+|tbd)\s*-\s*(kc-|ks-)?/i, "");
+  b = b.replace(/\b(unit|branded image|instagram|\(\d\))\b/gi, "");
+  return norm(b);
+}
+const bucketUrl = (n: string) => `https://storage.googleapis.com/kid-create/${n.split("/").map(encodeURIComponent).join("/")}`;
+// Best-guess branded graphic for each event name ("" when nothing fits). Randi can still change it.
+export async function suggestImages(eventNames: string[]): Promise<Record<string, string>> {
+  let files: string[] = [];
+  try { files = (await brandedImages()).filter((f) => /\.(png|jpe?g)$/i.test(f)); } catch { return {}; }
+  const keyed = files.map((f) => ({ f, k: fileKey(f) })).filter((x) => x.k.length >= 4);
+  const out: Record<string, string> = {};
+  for (const name of eventNames) {
+    const c = name.replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim();
+    const base = [norm(c), norm(c.replace(/\band\b/gi, ""))];
+    const alts = [...new Set([...base, ...base.map((a) => a.replace(/^parentstimeoff/, ""))])].filter(Boolean);
+    let best: { score: number[]; f: string } | null = null;
+    for (const { f, k } of keyed) {
+      let sc = 0;
+      for (const a of alts) {
+        if (k === a) sc = Math.max(sc, 3);
+        else if (a.length >= 6 && (k.includes(a) || a.includes(k))) sc = Math.max(sc, 2);
+      }
+      if (!sc) continue;
+      const pen = (/instagram/i.test(f) ? 2 : 0) + (/^branded images\/\d\s+\d\s/.test(f) ? 1 : 0) + (f.includes("(") ? 1 : 0);
+      const score = [sc, -pen, -f.length];
+      if (!best || score[0] > best.score[0] || (score[0] === best.score[0] && (score[1] > best.score[1] || (score[1] === best.score[1] && score[2] > best.score[2])))) best = { score, f };
+    }
+    out[name] = best ? bucketUrl(best.f) : "";
+  }
   return out;
 }
