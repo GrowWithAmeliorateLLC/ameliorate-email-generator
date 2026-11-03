@@ -47,6 +47,10 @@
   .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; background:var(--ice); color:var(--teal); }
   .checks label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; font-weight:600; }
   table.due td { padding:4px 8px 4px 0; font-size:13px; }
+  .weektog { display:flex; gap:10px; align-items:flex-start; background:var(--ice); border-radius:10px; padding:10px 12px; margin:12px 0 4px; font-weight:400; font-size:13px; cursor:pointer; }
+  .weektog input { margin-top:3px; }
+  .wev { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .wev img { max-width:160px; margin-top:6px; border-radius:6px; }
 </style>
 </head>
 <body>
@@ -96,6 +100,7 @@
     <section class="card">
       <h2><span class="step">2</span>Pick the event(s)</h2>
       <div class="muted">Listed in priority order: camps first, then kids/parents night out, then classes. Mark each session <b>Promote</b> (the main event) or <b>Also mention</b> (a smaller callout). Leave the rest on Skip.</div>
+      <label class="weektog"><input type="checkbox" id="weekMode"> <span><b>Week calendar</b> (several camps in one week, e.g. a school break). One email and one SMS cover the whole week: a Mon–Fri calendar, then one card per camp. Each Promote camp also gets its own SOCIAL task. Mark every day of every camp <b>Promote</b>, and add-ons like Lunch &amp; Doodle <b>Also mention</b>.</span></label>
       <div id="events"><div class="muted" style="margin-top:8px">Choose a studio to load its upcoming events.</div></div>
     </section>
 
@@ -104,9 +109,19 @@
       <h2><span class="step">3</span>Details from MyStudio</h2>
       <div class="muted">Times and prices load from MyStudio and the description comes from the ClickUp card. Check them, change anything that's off.</div>
       <div id="sessions"></div>
-      <label>Image URL (from the kid-create bucket)</label>
-      <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
-      <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
+      <div id="singleImg">
+        <label>Image URL (from the kid-create bucket)</label>
+        <input type="text" id="img" placeholder="https://storage.googleapis.com/kid-create/...">
+        <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
+      </div>
+      <div id="weekBox" class="hide">
+        <label>One image per camp (from the kid-create bucket). It goes on the camp's card and its SOCIAL task.</label>
+        <div id="weekImgs"></div>
+        <div class="row">
+          <div><label>Days with nothing scheduled: title (optional)</label><input type="text" id="gapTitle" placeholder="Happy Thanksgiving!"></div>
+          <div><label>…and the line under it</label><input type="text" id="gapText" value="No camps"></div>
+        </div>
+      </div>
       <label>Anything else to include? (optional)</label>
       <input type="text" id="notes" placeholder='e.g. "no price in the SMS"'>
       <div style="margin-top:14px"><button id="gen">Generate</button> <span id="genStatus" class="muted"></span></div>
@@ -125,6 +140,12 @@
             <div id="subjects"></div>
             <label>Preheader</label>
             <input type="text" id="preheader">
+            <div id="weekFields" class="hide">
+              <label>Eyebrow (small label over the headline)</label>
+              <input type="text" id="eyebrow">
+              <label>Main button link</label>
+              <input type="text" id="ctaLink">
+            </div>
             <label>Headline</label>
             <input type="text" id="headline">
             <label>Intro paragraph 1</label>
@@ -153,6 +174,7 @@
       <div class="card" id="socialCard">
         <h2><span class="step">6</span>Social caption</h2>
         <textarea id="caption" style="min-height:160px"></textarea>
+        <div id="weekSocials" class="hide"></div>
       </div>
 
       <div class="card">
@@ -164,6 +186,7 @@
           <tr id="dueSmsRow"><td><b>SMS</b> due</td><td><input type="date" id="dueSms"></td><td class="muted" id="ruleSms">3 days before</td></tr>
           <tr id="dueSocialRow"><td><b>SOCIAL</b> due</td><td><input type="date" id="dueSocial"></td><td class="muted" id="ruleSocial">10 days before</td></tr>
         </table>
+        <table class="due hide" id="weekSocialDue"></table>
         <div id="dueNote" class="muted"></div>
         <div style="margin-top:14px"><button id="push">Push to ClickUp</button> <span id="pushStatus" class="muted"></span></div>
         <div id="pushOut"></div>
@@ -333,12 +356,64 @@ function sessionRow(e, kind, idx) {
 }
 function renderSessions() {
   $("sessions").innerHTML = SEL.promote.map((e, i) => sessionRow(e, "promote", i)).join("") + SEL.also.map((e, i) => sessionRow(e, "also", i)).join("");
+  renderWeekImgs();
 }
 function readSession(e, kind, idx) {
   const key = `${kind}${idx}`, v = (f) => ($(`${key}_${f}`)?.value || "").trim();
   const d = evDate(e.due);
   return { name: cleanName(e.name), date: `${usShort(d)}/${d.getFullYear()}`, start: v("start"), end: v("end"), ages: v("ages"), price: v("price"), content: e.content || "", link: e.link,
-    _order: d.getTime() + minutesOf(v("start")) * 60000 };
+    id: e.id, _day: d.getTime(), _order: d.getTime() + minutesOf(v("start")) * 60000 };
+}
+
+// ---------- week calendar mode ----------
+// One email + SMS for a whole week of camps. Promote sessions are grouped by camp name (one card,
+// one image, one SOCIAL task per camp); Also-mention sessions (Lunch & Doodle etc.) only show in the calendar.
+const weekOn = () => $("weekMode").checked;
+let WIMG = {};   // camp name -> image URL (kept while Randi changes picks)
+let WEEK = [];   // [{ name, idx: [SESS indexes], first: session }] — built at Generate
+const campKey = (e) => cleanName(e.name).toLowerCase();
+function weekCampNames() {
+  const seen = new Map();
+  [...SEL.promote].sort((a, b) => a.due - b.due).forEach(e => { if (!seen.has(campKey(e))) seen.set(campKey(e), cleanName(e.name)); });
+  return [...seen.values()];
+}
+function renderWeekImgs() {
+  const on = weekOn();
+  show($("singleImg"), !on); show($("weekBox"), on);
+  if (!on) return;
+  const names = weekCampNames();
+  $("weekImgs").innerHTML = names.length ? names.map((n, i) => `<div class="wev"><b>${esc(n)}</b>
+    <input type="text" id="wimg${i}" data-name="${esc(n)}" placeholder="https://storage.googleapis.com/kid-create/..." value="${esc(WIMG[n.toLowerCase()] || "")}">
+    <img id="wimg${i}p" class="${WIMG[n.toLowerCase()] ? "" : "hide"}" src="${esc(WIMG[n.toLowerCase()] || "")}"></div>`).join("")
+    : `<div class="muted">Mark at least one camp Promote.</div>`;
+  names.forEach((n, i) => $(`wimg${i}`).oninput = () => {
+    const u = $(`wimg${i}`).value.trim(); WIMG[n.toLowerCase()] = u; $(`wimg${i}p`).src = u; show($(`wimg${i}p`), /^https:\/\//.test(u));
+  });
+}
+$("weekMode").onchange = renderSessions;
+
+// "9:00 AM" -> "9", "12:30 PM" -> "12:30"
+const shortT = (t) => String(t || "").replace(/:00\b/, "").replace(/\s*[ap]\.?m\.?/i, "").trim();
+function slotLabel(start, end) {
+  const s = minutesOf(start), e = minutesOf(end);
+  const tag = s < 11 * 60 ? "AM" : (s < 13 * 60 && e - s <= 90 ? "Lunch" : (s >= 12 * 60 ? "PM" : ""));
+  return { tag, span: end ? `${shortT(start)}&ndash;${shortT(end)}` : esc(shortT(start)) };
+}
+const calName = (n) => String(n).replace(/^parent'?s?\s*time\s*off\s*[:\-–]?\s*/i, "");
+// Columns = each weekday from the first to the last session (weekends only if something runs then).
+function weekGrid() {
+  const all = [...SESS, ...ALSO];
+  const days = [];
+  const first = Math.min(...all.map(s => s._day)), last = Math.max(...all.map(s => s._day));
+  for (let d = new Date(first); d.getTime() <= last; d = addDays(d, 1)) {
+    const has = all.some(s => s._day === d.getTime());
+    if (has || (d.getDay() >= 1 && d.getDay() <= 5)) days.push({ d, has });
+  }
+  const slots = [...new Map(all.map(s => [`${s.start}|${s.end}`, s])).values()]
+    .sort((a, b) => minutesOf(a.start) - minutesOf(b.start) || minutesOf(a.end) - minutesOf(b.end))
+    .map(s => ({ key: `${s.start}|${s.end}`, ...slotLabel(s.start, s.end) }));
+  const cell = (d, k) => [...new Set(all.filter(s => s._day === d.getTime() && `${s.start}|${s.end}` === k).map(s => calName(s.name)))];
+  return { days, slots, cell };
 }
 // "8:30 AM" -> 510. Unparseable times sort last within the day.
 function minutesOf(t) {
@@ -363,13 +438,23 @@ $("gen").onclick = async () => {
   const missing = [...SESS, ...ALSO].filter(s => !s.start || !s.price).map(s => s.name);
   if (missing.length) { $("genErr").textContent = `Add the start time and price for: ${missing.join(", ")}`; show($("genErr")); return; }
   const img = $("img").value.trim();
-  if (services.email || services.social) { if (!/^https:\/\/storage\.googleapis\.com\//.test(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
-  $("gen").disabled = true; $("genStatus").textContent = "Writing… (about 20–25 seconds)";
+  const bucket = (u) => /^https:\/\/storage\.googleapis\.com\//.test(u || "");
+  const week = weekOn();
+  WEEK = [];
+  if (week) {
+    const m = new Map();
+    SESS.forEach((s, i) => { const k = s.name.toLowerCase(); if (!m.has(k)) m.set(k, { name: s.name, idx: [], first: s }); m.get(k).idx.push(i); });
+    WEEK = [...m.values()].map(w => ({ ...w, imageUrl: (WIMG[w.name.toLowerCase()] || "").trim() }));
+    const noImg = WEEK.filter(w => !bucket(w.imageUrl)).map(w => w.name);
+    if ((services.email || services.social) && noImg.length) { $("genErr").textContent = `Add the image URL for: ${noImg.join(", ")}`; show($("genErr")); return; }
+  } else if (services.email || services.social) { if (!bucket(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
+  $("gen").disabled = true; $("genStatus").textContent = week ? "Writing the week… (about 30–45 seconds)" : "Writing… (about 20–25 seconds)";
   try {
     const j = await api("/api/kc/generate", { method: "POST", body: JSON.stringify({
-      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageUrl: img, notes: $("notes").value.trim(),
+      loc: $("loc").value, services, sessions: SESS, also: ALSO, imageUrl: week ? "" : img, notes: $("notes").value.trim(),
+      weekMode: week, weekEvents: WEEK.map(w => ({ name: w.name, sessionIndexes: w.idx, imageUrl: w.imageUrl })),
     }) });
-    COPY = j.copy; COPY._services = services;
+    COPY = j.copy; COPY._services = services; COPY._week = week;
     renderResults();
     $("genStatus").textContent = "";
   } catch (e) {
@@ -380,6 +465,7 @@ $("gen").onclick = async () => {
 // ---------- email template (locked) ----------
 function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 function buildEmail() {
+  if (COPY._week) return buildWeekEmail();
   const em = COPY.email, L = LOCS[$("loc").value], f = { name: L.name, page: L.page, fb: L.facebook, ig: L.instagram, mail: L.email };
   const subject = $("subjectEdit") ? $("subjectEdit").value : em.subjects[state.subjectIdx];
   const b = em.band || {};
@@ -554,14 +640,199 @@ ${alsoHtml}
 `;
 }
 
+// ---------- week calendar email template (locked) ----------
+function buildWeekEmail() {
+  const em = COPY.email, L = LOCS[$("loc").value];
+  const subject = $("subjectEdit") ? $("subjectEdit").value : em.subjects[state.subjectIdx];
+  const P = "font-family:'Poppins',Arial,Helvetica,sans-serif;";
+  const urg = $("urgency").value.trim(), ctaNote = (em.ctaNote || "").trim();
+  const cta = $("ctaLink").value.trim() || `${L.page}#school-break-camps`;
+  const g = weekGrid();
+  const fills = ["#F5FAEE", "#FEF5D7", "#D8EEF1", "#FDF0F7"];
+  const colW = Math.floor(84 / Math.max(g.days.length, 1));
+  const gapTitle = $("gapTitle").value.trim(), gapText = $("gapText").value.trim();
+  const th = (inner, bg, first) => `<td class="calday" width="${first ? 16 : colW}%" style="background:${bg}; color:${first ? "#FACB39" : "#FFFFFF"}; ${P} font-size:11px; font-weight:700; letter-spacing:1px; text-align:center; padding:10px 4px; text-transform:uppercase;${first ? "" : " border-left:2px solid #FFFFFF;"}">${inner}</td>`;
+  const head = th("&nbsp;", "#10252C", true) + g.days.map(({ d, has }) =>
+    th(`${DOW[d.getDay()]}<br><span class="caldate" style="font-size:18px; font-weight:800;">${d.getDate()}</span>`, has ? "#028A9B" : "#D70287")).join("");
+  const rows = g.slots.map((sl, r) => {
+    const label = `<td class="calrow" style="background:#10252C; color:#B3D7CF; ${P} font-size:10px; font-weight:700; letter-spacing:0.8px; text-align:center; padding:8px 4px; text-transform:uppercase; border-top:2px solid #FFFFFF;">${sl.tag ? `${sl.tag}<br>` : ""}${sl.span}</td>`;
+    const cells = g.days.map(({ d, has }) => {
+      if (!has) {
+        if (r > 0) return "";
+        return `<td class="calcell" rowspan="${g.slots.length}" style="background:#FDF0F7; text-align:center; vertical-align:middle; padding:12px 6px; word-break:break-word; hyphens:auto; border-left:2px solid #FFFFFF; border-top:2px solid #FFFFFF; ${P}">${gapTitle ? `<span class="calname" style="font-family:'Finger Paint','Comic Sans MS',cursive; font-size:14px; line-height:1.35; color:#D70287;">${esc(gapTitle)}</span><br>` : ""}<span class="caltime" style="font-size:10px; color:#10252C;">${esc(gapText)}</span></td>`;
+      }
+      const names = g.cell(d, sl.key);
+      return `<td class="calcell" style="background:${names.length ? fills[r % fills.length] : "#FFFFFF"}; text-align:center; padding:12px 6px; border-left:2px solid #FFFFFF; border-top:2px solid #FFFFFF; ${P}"><span class="calname" style="font-size:12px; line-height:1.3; font-weight:700; color:#10252C;">${names.map(esc).join("<br>") || "&nbsp;"}</span></td>`;
+    }).join("");
+    return `<tr>${label}${cells}</tr>`;
+  }).join("\n");
+  const ages = (SESS[0] && SESS[0].ages) || "";
+  // Camp cards, two per row (they stack on phones).
+  const cards = (em.cards || []).map(c => ({ c, w: WEEK[c.eventIndex] })).filter(x => x.w);
+  const card = ({ c, w }, left) => `<td class="card" width="50%" valign="top" style="padding:0 ${left ? "10px" : "0"} 24px ${left ? "0" : "10px"}; ${P}">
+            <a href="${esc(w.first.link)}" target="_blank" rel="noopener noreferrer"><img class="cardimg" src="${esc(w.imageUrl)}" width="250" alt="${esc(c.name || w.name)}" style="display:block; width:250px; max-width:100%; height:auto; border:0;"></a>
+            <div style="font-size:17px; font-weight:800; color:#10252C; margin:12px 0 2px 0;">${esc(c.name || w.name)}</div>
+            <div style="font-size:12px; font-weight:700; color:#028A9B; margin:0 0 6px 0;">${esc(c.when)}</div>
+            <div style="font-size:14px; line-height:1.55; color:#10252C; margin:0 0 6px 0;">${esc(c.description)}</div>
+            <div style="font-size:13px; font-weight:700; color:#10252C; margin:0 0 6px 0;">${esc(c.price)}</div>
+            <a href="${esc(w.first.link)}" target="_blank" rel="noopener noreferrer" style="font-size:13px; font-weight:700; color:#D70287;">${esc(c.linkText || "Register")} &rarr;</a>
+          </td>`;
+  let cardRows = "";
+  for (let i = 0; i < cards.length; i += 2) cardRows += `<tr>${card(cards[i], true)}${cards[i + 1] ? card(cards[i + 1], false) : `<td class="card" width="50%"></td>`}</tr>`;
+  const notes = (em.notes || []).filter(n => n && (n.label || n.text));
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>${esc(subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&amp;family=Finger+Paint&amp;display=swap" rel="stylesheet">
+<style>
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0; padding:0; background:#FFFFFF; }
+  a { text-decoration:none; }
+  @media (max-width:600px) {
+    .wrap { width:100% !important; }
+    .px { padding-left:20px !important; padding-right:20px !important; }
+    .h1 { font-size:26px !important; line-height:1.25 !important; }
+    .calday  { font-size:10px !important; letter-spacing:0.4px !important; padding:8px 2px !important; }
+    .caldate { font-size:15px !important; }
+    .calcell { padding:8px 3px !important; }
+    .calname { font-size:10px !important; line-height:1.25 !important; }
+    .caltime { font-size:8px !important; }
+    .calrow  { font-size:8px !important; letter-spacing:0.5px !important; padding:6px 2px !important; }
+    .card    { display:block !important; width:100% !important; padding:0 0 22px 0 !important; }
+    .cardimg { width:100% !important; }
+  }
+</style>
+</head>
+<body style="margin:0; padding:0; background:#FFFFFF;">
+
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#FFFFFF;">
+${esc($("preheader").value)}
+</div>
+
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FFFFFF;">
+<tr><td align="center">
+
+<table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; background:#FFFFFF;">
+
+  <tr>
+    <td align="center" style="background:#028A9B; padding:22px 20px;">
+      <a href="${L.page}" target="_blank" rel="noopener noreferrer">
+        <img src="https://storage.googleapis.com/kid-create/Kidcreate_Logo_Primary_Reversed%208.06.13%E2%80%AFAM.png" width="200" alt="${esc(L.name)}" style="display:block; max-width:100%; height:auto; border:0;">
+      </a>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="px" style="padding:34px 40px 8px; ${P}">
+      ${$("eyebrow").value.trim() ? `<div style="font-size:12px; font-weight:700; letter-spacing:1.6px; color:#4D7800; text-transform:uppercase; margin:0 0 10px;">${esc($("eyebrow").value)}</div>` : ""}
+      <div class="h1" style="font-size:32px; font-weight:800; line-height:1.2; color:#10252C;">${esc($("headline").value)}</div>
+      <p style="margin:16px 0 0; font-size:16px; line-height:1.6; color:#10252C;">${esc($("intro1").value)}</p>
+      ${$("intro2").value.trim() ? `<p style="margin:12px 0 0; font-size:16px; line-height:1.6; color:#10252C;">${esc($("intro2").value)}</p>` : ""}
+    </td>
+  </tr>
+
+  <tr>
+    <td class="px" style="padding:26px 40px 6px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="table-layout:fixed;">
+        <tr>${head}</tr>
+${rows}
+      </table>
+      <p style="margin:12px 0 0; ${P} font-size:13px; line-height:1.5; color:#10252C; text-align:center;">${ages ? `Ages ${esc(ages.replace(/y$/i, ""))} &middot; ` : ""}Tap any camp below to register</p>
+    </td>
+  </tr>
+
+  <tr>
+    <td class="px" style="padding:30px 40px 4px; ${P}">
+      <div style="font-size:12px; font-weight:700; letter-spacing:1.6px; color:#4D7800; text-transform:uppercase; margin:0 0 16px;">What they&rsquo;ll make</div>
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+${cardRows}
+      </table>
+    </td>
+  </tr>
+${notes.length ? `
+  <tr>
+    <td class="px" style="padding:0 40px 24px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F5FAEE;">
+        <tr>
+          <td style="padding:22px 24px; ${P} font-size:14px; line-height:1.6; color:#10252C;">
+            <div style="font-size:12px; font-weight:700; letter-spacing:1.6px; color:#4D7800; text-transform:uppercase; margin:0 0 10px;">What you&rsquo;re walking into</div>
+            ${notes.map((n, i) => `<div style="margin:0 0 ${i === notes.length - 1 ? 0 : 6}px;"><strong>${esc(n.label)}</strong> ${esc(n.text)}</div>`).join("\n            ")}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>` : ""}
+${urg ? `
+  <tr>
+    <td align="center" style="background:#FACB39; padding:14px 20px; ${P} font-size:14px; font-weight:700; color:#10252C;">${esc(urg)}</td>
+  </tr>` : ""}
+
+  <tr>
+    <td align="center" class="px" style="padding:30px 40px 6px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" bgcolor="#D70287" style="border-radius:50px;">
+            <a href="${esc(cta)}" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:16px 38px; ${P} font-size:17px; font-weight:700; color:#FFFFFF; border-radius:50px;">Reserve Your Spot</a>
+          </td>
+        </tr>
+      </table>
+      ${ctaNote ? `<p style="margin:12px 0 0; ${P} font-size:13px; line-height:1.5; color:#10252C;">${esc(ctaNote)}</p>` : ""}
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" class="px" style="padding:28px 40px 34px;">
+      <div style="font-family:'Finger Paint','Comic Sans MS',cursive; font-size:22px; line-height:1.4; color:#028A9B;">Making a mess is the best at Kidcreate!</div>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" style="background:#10252C; padding:30px 24px; ${P}">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="border:2px solid #B3D7CF; border-radius:50px;">
+            <a href="${L.page}#other-offerings" target="_blank" rel="noopener noreferrer" style="display:inline-block; padding:11px 26px; font-size:14px; font-weight:700; color:#FFFFFF;">Explore All Classes &amp; Events</a>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:18px; font-size:13px; color:#B3D7CF;">
+        <a href="${L.page}#upcoming-weekly-classes" target="_blank" rel="noopener noreferrer" style="color:#B3D7CF;">Classes</a>
+        &nbsp;&middot;&nbsp;
+        <a href="mailto:${L.email}" target="_blank" rel="noopener noreferrer" style="color:#B3D7CF;">Contact</a>
+      </div>
+      <div style="margin-top:10px; font-size:13px; font-weight:700;">
+        <a href="${L.facebook}" target="_blank" rel="noopener noreferrer" style="color:#FACB39;">Facebook</a>
+        &nbsp;&middot;&nbsp;
+        <a href="${L.instagram}" target="_blank" rel="noopener noreferrer" style="color:#FACB39;">Instagram</a>
+      </div>
+      <div style="margin-top:14px; font-size:12px; color:#B3D7CF;">${esc(L.name)}</div>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+`;
+}
+
 // ---------- results ----------
 const optOut = "Reply STOP to opt out";
-function smsFull(t) { return `${t.trim()} ${SESS[0].link} ${optOut}`; }
+// Week mode texts point at the camps page (the main button link) instead of one day's MyStudio page.
+function smsLink() { return COPY && COPY._week ? ($("ctaLink").value.trim() || SESS[0].link) : SESS[0].link; }
+function smsFull(t) { return `${t.trim()} ${smsLink()} ${optOut}`; }
 function segInfo(s) { const n = s.length; const seg = n <= 160 ? 1 : Math.ceil(n / 153); return `${n} characters · ${seg} segment${seg > 1 ? "s" : ""}`; }
 
 function renderResults() {
   const c = COPY, svc = c._services;
   show($("results"));
+  if (c._week) $("ctaLink").value = `${LOCS[$("loc").value].page}#school-break-camps`;
   // Angle + flags
   $("angleCard").innerHTML = `<h2><span class="step">✓</span>Angle: ${esc(c.angle || "")}</h2><div class="muted">${esc(c.angleWhy || "")}</div>` +
     (c.flags || []).map(f => `<div class="flag">⚠️ ${esc(f)}</div>`).join("") +
@@ -580,7 +851,11 @@ function renderResults() {
     });
     $("preheader").value = c.email.preheader || ""; $("headline").value = c.email.headline || "";
     $("intro1").value = c.email.intro1 || ""; $("intro2").value = c.email.intro2 || ""; $("urgency").value = c.email.urgency || "";
-    ["subjectEdit", "preheader", "headline", "intro1", "intro2", "urgency"].forEach(id => $(id).oninput = refreshPreview);
+    show($("weekFields"), !!c._week);
+    if (c._week) $("eyebrow").value = c.email.eyebrow || "";
+    ["subjectEdit", "preheader", "headline", "intro1", "intro2", "urgency", "eyebrow", "gapTitle", "gapText"].forEach(id => $(id).oninput = refreshPreview);
+    // The main button link is also the SMS link in week mode, so refresh both.
+    $("ctaLink").oninput = () => { refreshPreview(); document.querySelectorAll("#smsOpts textarea, #lastCall").forEach(t => t.dispatchEvent(new Event("input"))); };
     refreshPreview();
   }
 
@@ -600,12 +875,26 @@ function renderResults() {
   }
 
   // Social
-  show($("socialCard"), !!(svc.social && c.social));
-  show($("dueSocialRow"), !!(svc.social && c.social));
-  if (svc.social && c.social) $("caption").value = c.social.caption || "";
+  const soc = !!(svc.social && c.social);
+  const wsoc = soc && c._week ? (c.social.captions || []).filter(x => WEEK[x.eventIndex]) : [];
+  show($("socialCard"), soc);
+  show($("dueSocialRow"), soc && !c._week);
+  show($("caption"), !c._week); show($("weekSocials"), soc && !!c._week); show($("weekSocialDue"), soc && !!c._week);
+  if (soc && !c._week) $("caption").value = c.social.caption || "";
+  if (soc && c._week) {
+    // One caption, image and SOCIAL task per camp, under that camp's earliest card.
+    $("weekSocials").innerHTML = wsoc.map((x, k) => { const w = WEEK[x.eventIndex]; return `<div class="wev">
+      <b>${esc(w.name)}</b> <span class="muted">· goes under "${esc(w.first.name)}" ${esc(usShort(new Date(w.first._day)))}</span>
+      <textarea id="wcap${k}" style="min-height:140px">${esc(x.caption)}</textarea>
+      <img src="${esc(w.imageUrl)}"></div>`; }).join("");
+    $("weekSocialDue").innerHTML = wsoc.map((x, k) => { const w = WEEK[x.eventIndex]; const due = computeDue(new Date(w.first._day));
+      return `<tr><td><b>SOCIAL</b> · ${esc(w.name)}</td><td><input type="date" id="wdue${k}" value="${ymd(due.social)}"></td><td class="muted">${due.social.getTime() === new Date(new Date().toDateString()).getTime() ? "default already passed, set to today" : "10 days before that camp"}</td></tr>`; }).join("");
+    COPY._wsoc = wsoc;
+  }
 
   // Parent card + due dates
-  const chosen = [...SEL.promote];
+  // Week mode: EMAIL + SMS default to the earliest camp's card (first day, earliest start).
+  const chosen = c._week ? [...SEL.promote].sort((a, b) => (a.due - b.due) || (minutesOf((a.ms || {}).start) - minutesOf((b.ms || {}).start))) : [...SEL.promote];
   const parents = [...new Set(chosen.map(e => e.parent).filter(p => p && PARENTS[p]))];
   const opts = [];
   parents.forEach(p => opts.push({ id: p, label: `${PARENTS[p].name} (group card)` }));
@@ -631,12 +920,16 @@ $("push").onclick = async () => {
   const svc = COPY._services, body = { loc: $("loc").value, parentId: $("parent").value, dueDates: {} };
   if (svc.email && COPY.email) { body.email = { subject: $("subjectEdit").value.trim(), html: buildEmail() }; body.dueDates.email = $("dueEmail").value; }
   if (svc.sms && COPY.sms) { body.sms = { text: smsFull($(`sms${state.smsIdx}`).value) }; body.dueDates.sms = $("dueSms").value; }
-  if (svc.social && COPY.social) { body.social = { caption: $("caption").value.trim(), imageUrl: $("img").value.trim() }; body.dueDates.social = $("dueSocial").value; }
+  if (svc.social && COPY.social && COPY._week) {
+    body.socials = (COPY._wsoc || []).map((x, k) => { const w = WEEK[x.eventIndex];
+      return { parentId: w.first.id, caption: $(`wcap${k}`).value.trim(), imageUrl: w.imageUrl, due: $(`wdue${k}`).value }; });
+  } else if (svc.social && COPY.social) { body.social = { caption: $("caption").value.trim(), imageUrl: $("img").value.trim() }; body.dueDates.social = $("dueSocial").value; }
   $("push").disabled = true; $("pushStatus").textContent = "Pushing…"; $("pushOut").innerHTML = "";
   try {
     const j = await api("/api/kc/push", { method: "POST", body: JSON.stringify(body) });
-    $("pushOut").innerHTML = `<div class="${j.ok ? "ok" : "err"}">Under <a href="${j.parent.url}" target="_blank" rel="noopener">${esc(j.parent.name)}</a>:<br>` +
-      j.results.map(r => r.action === "failed" ? `✗ ${r.name}: ${esc(r.error)}` : `✓ <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a> ${r.action}`).join("<br>") + `</div>`;
+    $("pushOut").innerHTML = `<div class="${j.ok ? "ok" : "err"}">` +
+      j.results.map(r => (r.action === "failed" ? `✗ ${r.name}: ${esc(r.error)}` : `✓ <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a> ${r.action}`) +
+        (r.parentName ? ` <span class="muted">under <a href="${r.parentUrl}" target="_blank" rel="noopener">${esc(r.parentName)}</a></span>` : "")).join("<br>") + `</div>`;
   } catch (e) { $("pushOut").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
   finally { $("push").disabled = false; $("pushStatus").textContent = ""; }
 };

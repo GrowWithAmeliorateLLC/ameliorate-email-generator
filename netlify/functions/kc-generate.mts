@@ -66,6 +66,31 @@ OUTPUT: return ONLY one JSON object, no markdown fences, exactly this shape (omi
  "sms":{"options":[{"label":"A","text":""},{"label":"B","text":""},{"label":"C","text":""}],"recommended":"A","lastCall":""},
  "social":{"caption":""}}`;
 
+// WEEK CALENDAR mode: several camps/events in one week, one email + one SMS covers all of them,
+// and every promoted event gets its own social caption. The page draws the calendar grid itself
+// from the session dates and times; Claude only writes the words.
+const WEEK_RULES = `
+WEEK CALENDAR MODE (this request) — overrides the EMAIL COPY, SMS and SOCIAL CAPTION sections above where they conflict.
+The input lists EVENTS (each a promoted camp/event that runs on one or more days, with its sessions) plus ALSO MENTION add-ons (e.g. Lunch & Doodle). The email shows a week calendar the template builds from the dates, then one card per EVENT.
+- Pick ONE angle for the whole week (usually "Screen-free" or "Something new to do" for a school break).
+- email.eyebrow: short label over the headline, e.g. "THANKSGIVING BREAK · NOV 23 – 27" (name the break only if the input or notes name it; otherwise "NO SCHOOL WEEK · NOV 23 – 27" or "THIS WEEK AT KIDCREATE").
+- email.headline: max ~8 words, about the week as a whole, not one event.
+- email.intro1 / intro2: 1–2 sentences each. intro1 names 3–4 vivid real projects across the events. intro2 explains how to book (single day vs the full run, stacking a morning + add-on + afternoon into a full day) — only claim what the sessions support.
+- email.cards: one per EVENT, in input order: {"eventIndex":N,"name":"","when":"Mon–Wed · 9 AM–12 PM","price":"$65 per day","description":"1–2 sentences from that event's own description","linkText":"Register"}. Price only from the input.
+- email.notes: exactly 3 "What you're walking into" lines {"label":"Drop-off, all supplies included.","text":"..."}: logistics from the descriptions (what to pack, add-ons like Lunch & Doodle with their price, a parent-benefit line for Parent's Time Off / drop-off days). Every ALSO MENTION add-on must appear in a note.
+- email.urgency: one short line if any description says spots are limited, else "".
+- email.ctaNote: "", or one short line such as "Prices plus admin fee at checkout." only if the input says there's an admin fee.
+- Do NOT return email.band, email.also or email.imageAlt.
+- SMS: the timing lead covers the week ("Thanksgiving break 11/23-11/27:" / "No school 11/23-11/27:"). Each option still names the studio, ends its invitation sentence with ONE exclamation point and writes ages into a sentence. Make the options different angles (whole week / one standout day / full-day stack). lastCall opens "Tomorrow morning:" for the first day.
+- social: {"captions":[{"eventIndex":N,"caption":""}]} — one caption per EVENT following the SOCIAL CAPTION rules, each opening on that event's own activity, each worded differently. Do NOT return social.caption.
+OUTPUT SHAPE in this mode:
+{"angle":"","angleWhy":"","flags":[],
+ "email":{"subjects":["","",""],"recommended":0,"preheader":"","eyebrow":"","headline":"","intro1":"","intro2":"",
+  "cards":[{"eventIndex":0,"name":"","when":"","price":"","description":"","linkText":"Register"}],
+  "notes":[{"label":"","text":""}],"urgency":"","ctaNote":""},
+ "sms":{"options":[{"label":"A","text":""},{"label":"B","text":""},{"label":"C","text":""}],"recommended":"A","lastCall":""},
+ "social":{"captions":[{"eventIndex":0,"caption":""}]}}`;
+
 function sessionBlock(s: Session, i: number) {
   return `[${i}] ${s.name}
   Date: ${s.date} · Time: ${s.start || "?"}–${s.end || "?"} · Ages: ${s.ages || "?"} · Price: ${s.price || "?"}
@@ -90,38 +115,67 @@ export default async (req: Request) => {
   if (!sessions.length) return json({ error: "Pick at least one session." }, 400);
   if (!svc.email && !svc.sms && !svc.social) return json({ error: "Pick at least one service." }, 400);
 
-  const imageUrl = /^https:\/\/storage\.googleapis\.com\//.test(b.imageUrl || "") ? b.imageUrl : "";
+  const okImg = (u: any) => typeof u === "string" && /^https:\/\/storage\.googleapis\.com\//.test(u);
+  const imageUrl = okImg(b.imageUrl) ? b.imageUrl : "";
+  const week = !!b.weekMode;
+  // Week mode: [{ name, sessionIndexes: number[], imageUrl }] — one entry per promoted event.
+  const weekEvents: { name: string; sessionIndexes: number[]; imageUrl?: string }[] =
+    week && Array.isArray(b.weekEvents) ? b.weekEvents.slice(0, 8) : [];
+  if (week && !weekEvents.length) return json({ error: "Week calendar mode needs at least one event to promote." }, 400);
   const wanted = [svc.email && "email", svc.sms && "sms", svc.social && "social"].filter(Boolean).join(", ");
+
+  const eventsBlock = weekEvents.map((ev, i) => {
+    const ss = ev.sessionIndexes.map((k) => sessions[k]).filter(Boolean);
+    const days = ss.map((s) => `${s.date} ${s.start || "?"}–${s.end || "?"} ${s.price || "?"}`).join("; ");
+    return `EVENT [${i}] ${ev.name}
+  Sessions: ${days}
+  Ages: ${ss[0]?.ages || "?"}
+  Image: ${okImg(ev.imageUrl) ? `attached (labeled EVENT [${i}])` : "(none)"}
+  Description:
+  ${(ss[0]?.content || "(none)").replace(/\n/g, "\n  ")}`;
+  }).join("\n\n");
+
   const user = `STUDIO: ${loc.name} (${loc.short})
 Studio rules: ${loc.notes || "(none beyond the general rules)"}
 Location hashtags: ${loc.hashtags}
 SERVICES REQUESTED: ${wanted} — only return those keys (plus angle/angleWhy/flags).
+${week ? `MODE: WEEK CALENDAR (see WEEK CALENDAR MODE rules)
 
+EVENTS:
+${eventsBlock}` : `
 SESSIONS TO PROMOTE:
-${sessions.map(sessionBlock).join("\n\n")}
+${sessions.map(sessionBlock).join("\n\n")}`}
 
 ALSO MENTION:
 ${also.length ? also.map(sessionBlock).join("\n\n") : "(none)"}
 
-IMAGE: ${imageUrl ? "attached above. Look at it before writing." : "(none)"}
+${week ? "IMAGES: one per EVENT where attached above, each labeled. Look at them before writing." : `IMAGE: ${imageUrl ? "attached above. Look at it before writing." : "(none)"}`}
 ANYTHING ELSE TO INCLUDE: ${b.notes || "(nothing)"}`;
+
+  const content: any[] = [];
+  if (week) {
+    weekEvents.forEach((ev, i) => {
+      if (okImg(ev.imageUrl)) {
+        content.push({ type: "text", text: `EVENT [${i}] image (${ev.name}):` });
+        content.push({ type: "image", source: { type: "url", url: ev.imageUrl } });
+      }
+    });
+  } else if (imageUrl) {
+    content.push({ type: "image", source: { type: "url", url: imageUrl } });
+  }
+  content.push({ type: "text", text: user });
 
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
     body: JSON.stringify({
       model: env("KC_MODEL") || MODEL_DEFAULT,
-      max_tokens: 4000,
+      max_tokens: week ? 7000 : 4000,
       // This model thinks by default; with thinking on it used the whole budget and wrote no answer.
       // "between_tools" is this model's way of saying "don't think before responding".
       thinking: { type: "between_tools" },
-      system: RULES,
-      messages: [{
-        role: "user",
-        content: imageUrl
-          ? [{ type: "image", source: { type: "url", url: imageUrl } }, { type: "text", text: user }]
-          : user,
-      }],
+      system: week ? RULES + "\n" + WEEK_RULES : RULES,
+      messages: [{ role: "user", content }],
     }),
   });
   const raw = await res.text();
