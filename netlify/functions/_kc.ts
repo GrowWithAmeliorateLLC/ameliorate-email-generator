@@ -270,25 +270,30 @@ let BUCKET: { at: number; names: string[] } | null = null;
 async function brandedImages(): Promise<string[]> {
   if (BUCKET && Date.now() - BUCKET.at < 30 * 60e3) return BUCKET.names;
   const names: string[] = [];
-  let tok = "";
-  for (let i = 0; i < 5; i++) {
-    const u = `https://storage.googleapis.com/storage/v1/b/kid-create/o?prefix=${encodeURIComponent("branded images/")}&maxResults=1000&fields=nextPageToken,items(name)${tok ? `&pageToken=${tok}` : ""}`;
-    const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 5000);
-    try {
-      const j: any = await (await fetch(u, { signal: ctrl.signal })).json();
-      names.push(...(j.items || []).map((x: any) => x.name));
-      tok = j.nextPageToken || "";
-    } finally { clearTimeout(t); }
-    if (!tok) break;
+  // Event graphics live in "branded images/"; a few newer ones (e.g. Cat in the Hat) are in "Graphics/".
+  for (const prefix of ["branded images/", "Graphics/"]) {
+    let tok = "";
+    for (let i = 0; i < 5; i++) {
+      const u = `https://storage.googleapis.com/storage/v1/b/kid-create/o?prefix=${encodeURIComponent(prefix)}&maxResults=1000&fields=nextPageToken,items(name)${tok ? `&pageToken=${tok}` : ""}`;
+      const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), 5000);
+      try {
+        const j: any = await (await fetch(u, { signal: ctrl.signal })).json();
+        names.push(...(j.items || []).map((x: any) => x.name));
+        tok = j.nextPageToken || "";
+      } finally { clearTimeout(t); }
+      if (!tok) break;
+    }
   }
   BUCKET = { at: Date.now(), names };
   return names;
 }
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+// Program prefixes that the graphic's file name often leaves off ("Kids Night Out: Cat in the Hat" → "Cat in the Hat").
+const PRE = /^(parentstimeoff|kidsextremenightout|kidsnightout|homeschool|parentandme|parentme|familyfunnight)/;
 function fileKey(n: string) {
   let b = n.split("/").pop() || "";
   b = b.replace(/\.(png|jpe?g|webp)$/i, "");
-  b = b.replace(/^(\d\s+\d\s+)?(\d+|tbd)\s*-\s*(kc-|ks-)?/i, "");
+  b = b.replace(/^(\d\s+\d\s+)?(\d+|tbd)\s*-\s*(kc-|ks-|eas\s*-\s*)?/i, "");
   b = b.replace(/\b(unit|branded image|instagram|\(\d\))\b/gi, "");
   return norm(b);
 }
@@ -302,13 +307,16 @@ export async function suggestImages(eventNames: string[]): Promise<Record<string
   for (const name of eventNames) {
     const c = name.replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim();
     const base = [norm(c), norm(c.replace(/\band\b/gi, ""))];
-    const alts = [...new Set([...base, ...base.map((a) => a.replace(/^parentstimeoff/, ""))])].filter(Boolean);
+    const alts = [...new Set([...base, ...base.map((a) => a.replace(PRE, ""))])].filter((a) => a.length >= 5);
     let best: { score: number[]; f: string } | null = null;
     for (const { f, k } of keyed) {
       let sc = 0;
-      for (const a of alts) {
-        if (k === a) sc = Math.max(sc, 3);
-        else if (a.length >= 6 && (k.includes(a) || a.includes(k))) sc = Math.max(sc, 2);
+      // Exact name match, or the file name contains the whole (long enough) event name,
+      // e.g. "3293 - Kidscientific - Fizzy Fairy Potions". Short names must match exactly, so
+      // "Slime Lab" doesn't grab the Tie Dye Slime Lab graphic.
+      for (const kk of new Set([k, k.replace(PRE, "")])) for (const a of alts) {
+        if (kk === a) sc = Math.max(sc, 3);
+        else if (a.length >= 10 && kk.includes(a)) sc = Math.max(sc, 2);
       }
       if (!sc) continue;
       const pen = (/instagram/i.test(f) ? 2 : 0) + (/^branded images\/\d\s+\d\s/.test(f) ? 1 : 0) + (f.includes("(") ? 1 : 0);
