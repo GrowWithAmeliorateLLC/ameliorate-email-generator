@@ -116,7 +116,7 @@
         <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
       </div>
       <div id="weekBox" class="hide">
-        <label>One image per camp (from the kid-create bucket). It goes on the camp's card and its SOCIAL task. The app fills in its best match by name, so check each one.</label>
+        <label>Images per camp (from the kid-create bucket). The first one goes on the camp's card and its SOCIAL task. If a camp shows up on more than one card, the extras are used so the picture doesn't repeat. The app fills in its best matches by name (branded graphic first, then real project photos), so check each one.</label>
         <div id="weekImgs"></div>
         <div class="row">
           <div><label>Days with nothing scheduled: title (optional)</label><input type="text" id="gapTitle" placeholder="Happy Thanksgiving!"></div>
@@ -391,7 +391,8 @@ function renderWeekImgs() {
   if (!on) return;
   const names = weekCampNames();
   // Prefill each camp with the app's best match from the kid-create bucket (Randi can change it), and keep the other matches handy.
-  SEL.promote.forEach(e => { const k = campKey(e); if (!WIMG[k] && e.img) WIMG[k] = [e.img]; WALT[k] = [...new Set([...(WALT[k] || []), ...(e.imgs || [])])]; });
+  // The branded graphic leads; up to 2 matching project photos are queued as backups for a camp that shows up on more than one card.
+  SEL.promote.forEach(e => { const k = campKey(e); if (!WIMG[k] && e.img) WIMG[k] = (e.imgs && e.imgs.length ? e.imgs : [e.img]).slice(0, 3); WALT[k] = [...new Set([...(WALT[k] || []), ...(e.imgs || [])])]; });
   if (!names.length) { $("weekImgs").innerHTML = `<div class="muted">Mark at least one camp Promote.</div>`; return; }
   $("weekImgs").innerHTML = names.map((n, i) => {
     const k = n.toLowerCase(), list = WIMG[k] && WIMG[k].length ? WIMG[k] : [""];

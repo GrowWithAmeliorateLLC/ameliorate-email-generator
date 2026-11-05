@@ -271,7 +271,8 @@ async function brandedImages(): Promise<string[]> {
   if (BUCKET && Date.now() - BUCKET.at < 30 * 60e3) return BUCKET.names;
   const names: string[] = [];
   // Event graphics live in "branded images/"; a few newer ones (e.g. Cat in the Hat) are in "Graphics/".
-  for (const prefix of ["branded images/", "Graphics/"]) {
+  // "projects/" holds real project photos named by unit ("Bag Charms_TrendTastic - Studio Photo.JPG"), used as extra images.
+  for (const prefix of ["branded images/", "Graphics/", "projects/"]) {
     let tok = "";
     for (let i = 0; i < 5; i++) {
       const u = `https://storage.googleapis.com/storage/v1/b/kid-create/o?prefix=${encodeURIComponent(prefix)}&maxResults=1000&fields=nextPageToken,items(name)${tok ? `&pageToken=${tok}` : ""}`;
@@ -308,7 +309,9 @@ export async function suggestImages(eventNames: string[]): Promise<Record<string
 export async function suggestImageSets(eventNames: string[]): Promise<Record<string, string[]>> {
   let files: string[] = [];
   try { files = (await brandedImages()).filter((f) => /\.(png|jpe?g)$/i.test(f)); } catch { return {}; }
-  const keyed = files.map((f) => ({ f, k: fileKey(f) })).filter((x) => x.k.length >= 4);
+  const isPhoto = (f: string) => f.startsWith("projects/");
+  const keyed = files.filter((f) => !isPhoto(f)).map((f) => ({ f, k: fileKey(f) })).filter((x) => x.k.length >= 4);
+  const photos = files.filter(isPhoto).map((f) => ({ f, k: norm(f.slice(9).replace(/\.(png|jpe?g)$/i, "")) }));
   const out: Record<string, string[]> = {};
   for (const name of eventNames) {
     const c = name.replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim();
@@ -329,7 +332,11 @@ export async function suggestImageSets(eventNames: string[]): Promise<Record<str
       hits.push({ score: [sc, -pen, -f.length], f });
     }
     hits.sort((a, b) => (b.score[0] - a.score[0]) || (b.score[1] - a.score[1]) || (b.score[2] - a.score[2]));
-    out[name] = [...new Set(hits.map((h) => bucketUrl(h.f)))].slice(0, 6);
+    // The best branded graphic, then real project photos of that unit (other branded files are the same design re-cropped).
+    // Photos need a long-enough name inside the file name, so "Clay" alone doesn't pull every clay photo.
+    const pics = photos.filter((p) => alts.some((a) => a.length >= 8 && p.k.includes(a)))
+      .sort((a, b) => (/supply|material|detail/i.test(a.f) ? 1 : 0) - (/supply|material|detail/i.test(b.f) ? 1 : 0) || a.f.length - b.f.length);
+    out[name] = [...new Set([...hits.slice(0, 1), ...pics].map((h) => bucketUrl(h.f)))].slice(0, 6);
   }
   return out;
 }
