@@ -159,6 +159,7 @@
               <div style="flex:0"><button class="ghost" id="copyHtml">Copy HTML</button></div>
             </div>
           </div>
+          <div class="flag hide" id="imgRepeat"></div>
           <div><iframe id="preview" title="Email preview"></iframe></div>
         </div>
       </div>
@@ -372,7 +373,8 @@ function readSession(e, kind, idx) {
 // One email + SMS for a whole week of camps. Promote sessions are grouped by camp name (one card,
 // one image, one SOCIAL task per camp); Also-mention sessions (Lunch & Doodle etc.) only show in the calendar.
 const weekOn = () => $("weekMode").checked;
-let WIMG = {};   // camp name -> image URL (kept while Randi changes picks)
+let WIMG = {};   // camp name -> [image URLs] (kept while Randi changes picks). Extras rotate when a camp shows up more than once.
+let WALT = {};   // camp name -> other matching graphics in the kid-create bucket
 let WEEK = [];   // [{ name, idx: [SESS indexes], first: session }] — built at Generate
 const campKey = (e) => cleanName(e.name).toLowerCase();
 function weekCampNames() {
@@ -380,19 +382,53 @@ function weekCampNames() {
   [...SEL.promote].sort((a, b) => a.due - b.due).forEach(e => { if (!seen.has(campKey(e))) seen.set(campKey(e), cleanName(e.name)); });
   return [...seen.values()];
 }
+const isImg = (u) => /^https:\/\//.test(u || "");
+// A camp's images, in order (blank boxes dropped).
+const campImgs = (name) => (WIMG[String(name).toLowerCase()] || []).map(u => u.trim()).filter(isImg);
 function renderWeekImgs() {
   const on = weekOn();
   show($("singleImg"), !on); show($("weekBox"), on);
   if (!on) return;
   const names = weekCampNames();
-  // Prefill each camp's image with the app's suggestion from the kid-create bucket (Randi can change it).
-  SEL.promote.forEach(e => { const k = cleanName(e.name).toLowerCase(); if (!WIMG[k] && e.img) WIMG[k] = e.img; });
-  $("weekImgs").innerHTML = names.length ? names.map((n, i) => `<div class="wev"><b>${esc(n)}</b>
-    <input type="text" id="wimg${i}" data-name="${esc(n)}" placeholder="https://storage.googleapis.com/kid-create/..." value="${esc(WIMG[n.toLowerCase()] || "")}">
-    <img id="wimg${i}p" class="${WIMG[n.toLowerCase()] ? "" : "hide"}" src="${esc(WIMG[n.toLowerCase()] || "")}"></div>`).join("")
-    : `<div class="muted">Mark at least one camp Promote.</div>`;
-  names.forEach((n, i) => $(`wimg${i}`).oninput = () => {
-    const u = $(`wimg${i}`).value.trim(); WIMG[n.toLowerCase()] = u; $(`wimg${i}p`).src = u; show($(`wimg${i}p`), /^https:\/\//.test(u));
+  // Prefill each camp with the app's best match from the kid-create bucket (Randi can change it), and keep the other matches handy.
+  SEL.promote.forEach(e => { const k = campKey(e); if (!WIMG[k] && e.img) WIMG[k] = [e.img]; WALT[k] = [...new Set([...(WALT[k] || []), ...(e.imgs || [])])]; });
+  if (!names.length) { $("weekImgs").innerHTML = `<div class="muted">Mark at least one camp Promote.</div>`; return; }
+  $("weekImgs").innerHTML = names.map((n, i) => {
+    const k = n.toLowerCase(), list = WIMG[k] && WIMG[k].length ? WIMG[k] : [""];
+    const alts = (WALT[k] || []).filter(u => !list.includes(u));
+    return `<div class="wev" id="wbox${i}"><b>${esc(n)}</b>
+      ${list.map((u, j) => `<div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+        <input type="text" class="wimgin" data-i="${i}" data-j="${j}" placeholder="https://storage.googleapis.com/kid-create/..." value="${esc(u)}">
+        ${j ? `<button type="button" class="ghost wdel" style="padding:4px 10px" data-i="${i}" data-j="${j}" title="Remove">✕</button>` : ""}</div>
+        ${isImg(u) ? `<img src="${esc(u)}">` : ""}`).join("")}
+      <div style="margin-top:6px"><button type="button" class="ghost wadd" style="padding:4px 10px;font-size:12px" data-i="${i}">+ Add another image</button>
+        <span class="muted">Used if this camp shows up on more than one card.</span></div>
+      ${alts.length ? `<div class="muted" style="margin-top:6px">Other matches in the bucket (click to add):</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${alts.map(u => `<img class="walt" data-i="${i}" data-u="${esc(u)}" src="${esc(u)}" title="Add this image" style="max-width:90px;cursor:pointer;margin:0">`).join("")}</div>` : ""}
+      <div class="flag hide" id="wdup${i}"></div></div>`;
+  }).join("");
+  const key = (i) => names[+i].toLowerCase();
+  document.querySelectorAll(".wimgin").forEach(inp => {
+    inp.oninput = () => { const k = key(inp.dataset.i); WIMG[k] = WIMG[k] && WIMG[k].length ? WIMG[k] : [""]; WIMG[k][+inp.dataset.j] = inp.value.trim(); checkWeekDupes(names); };
+    inp.onchange = renderWeekImgs;  // redraw the preview once she's done typing/pasting
+  });
+  document.querySelectorAll(".wadd").forEach(b => b.onclick = () => { const k = key(b.dataset.i); WIMG[k] = [...(WIMG[k] || [""]), ""]; renderWeekImgs(); });
+  document.querySelectorAll(".wdel").forEach(b => b.onclick = () => { const k = key(b.dataset.i); WIMG[k].splice(+b.dataset.j, 1); renderWeekImgs(); });
+  document.querySelectorAll(".walt").forEach(im => im.onclick = () => {
+    const k = key(im.dataset.i), list = (WIMG[k] || []).filter(isImg);
+    WIMG[k] = [...list, im.dataset.u]; renderWeekImgs();
+  });
+  checkWeekDupes(names);
+  if (COPY && COPY._week && $("emailCard") && !$("emailCard").classList.contains("hide")) refreshPreview();
+}
+// Flag a camp whose main image is the same as another camp's (they'd look identical in the email and on social).
+function checkWeekDupes(names) {
+  names.forEach((n, i) => {
+    const mine = campImgs(n)[0];
+    const others = names.filter((m, j) => j !== i && mine && campImgs(m)[0] === mine);
+    const box = $(`wdup${i}`); if (!box) return;
+    box.textContent = others.length ? `⚠️ Same main image as ${others.join(", ")}. Swap one so the cards don't repeat.` : "";
+    show(box, others.length > 0);
   });
 }
 $("weekMode").onchange = renderSessions;
@@ -428,6 +464,7 @@ function minutesOf(t) {
   return h * 60 + (+m[2] || 0);
 }
 const byWhen = (a, b) => a._order - b._order;
+let WEEK_REPEATS = [];  // camps whose picture repeats in the email (not enough images added)
 
 $("img").oninput = () => { const u = $("img").value.trim(); $("imgPrev").src = u; show($("imgPrev"), /^https:\/\//.test(u)); };
 
@@ -449,7 +486,8 @@ $("gen").onclick = async () => {
   if (week) {
     const m = new Map();
     SESS.forEach((s, i) => { const k = s.name.toLowerCase(); if (!m.has(k)) m.set(k, { name: s.name, idx: [], first: s }); m.get(k).idx.push(i); });
-    WEEK = [...m.values()].map(w => ({ ...w, imageUrl: (WIMG[w.name.toLowerCase()] || "").trim() }));
+    WEEK = [...m.values()];
+    WEEK.forEach(w => Object.defineProperty(w, "imageUrl", { get: () => campImgs(w.name)[0] || "" }));
     const noImg = WEEK.filter(w => !bucket(w.imageUrl)).map(w => w.name);
     if ((services.email || services.social) && noImg.length) { $("genErr").textContent = `Add the image URL for: ${noImg.join(", ")}`; show($("genErr")); return; }
   } else if (services.email || services.social) { if (!bucket(img)) { $("genErr").textContent = "Add the image URL from the kid-create bucket."; show($("genErr")); return; } }
@@ -458,7 +496,7 @@ $("gen").onclick = async () => {
     const req = (svc, extra = "") => api("/api/kc/generate", { method: "POST", body: JSON.stringify({
       loc: $("loc").value, services: svc, sessions: SESS, also: ALSO, imageUrl: week ? "" : img,
       notes: [$("notes").value.trim(), extra].filter(Boolean).join(" "),
-      weekMode: week, weekEvents: WEEK.map(w => ({ name: w.name, sessionIndexes: w.idx, imageUrl: w.imageUrl })),
+      weekMode: week, weekEvents: WEEK.map(w => ({ name: w.name, sessionIndexes: w.idx, imageUrl: w.imageUrl, otherImages: campImgs(w.name).slice(1) })),
     }) });
     let copy;
     if (week && services.social && (services.email || services.sms)) {
@@ -686,8 +724,18 @@ function buildWeekEmail() {
   const ages = (SESS[0] && SESS[0].ages) || "";
   // Camp cards, two per row (they stack on phones).
   const cards = (em.cards || []).map(c => ({ c, w: WEEK[c.eventIndex] })).filter(x => x.w);
-  const card = ({ c, w }, left) => `<td class="card" width="50%" valign="top" style="padding:0 ${left ? "10px" : "0"} 24px ${left ? "0" : "10px"}; ${P}">
-            <a href="${esc(w.first.link)}" target="_blank" rel="noopener noreferrer"><img class="cardimg" src="${esc(w.imageUrl)}" width="250" alt="${esc(c.name || w.name)}" style="display:block; width:250px; max-width:100%; height:auto; border:0;"></a>
+  // Give every card its own picture: a camp that shows up on more than one card steps through its images,
+  // skipping any already used on another card. Only repeats when it runs out (and says so).
+  const used = new Set(), repeats = new Set();
+  cards.forEach(x => {
+    const list = campImgs(x.w.name);
+    x.img = list.find(u => !used.has(u)) || list[cards.filter(y => y.w === x.w).indexOf(x) % Math.max(list.length, 1)] || "";
+    if (used.has(x.img)) repeats.add(x.w.name);
+    used.add(x.img);
+  });
+  WEEK_REPEATS = [...repeats];
+  const card = ({ c, w, img }, left) => `<td class="card" width="50%" valign="top" style="padding:0 ${left ? "10px" : "0"} 24px ${left ? "0" : "10px"}; ${P}">
+            <a href="${esc(w.first.link)}" target="_blank" rel="noopener noreferrer"><img class="cardimg" src="${esc(img)}" width="250" alt="${esc(c.name || w.name)}" style="display:block; width:250px; max-width:100%; height:auto; border:0;"></a>
             <div style="font-size:17px; font-weight:800; color:#10252C; margin:12px 0 2px 0;">${esc(c.name || w.name)}</div>
             <div style="font-size:12px; font-weight:700; color:#028A9B; margin:0 0 6px 0;">${esc(c.when)}</div>
             <div style="font-size:14px; line-height:1.55; color:#10252C; margin:0 0 6px 0;">${esc(c.description)}</div>
@@ -928,7 +976,12 @@ function renderResults() {
   $("pushOut").innerHTML = "";
   $("results").scrollIntoView({ behavior: "smooth" });
 }
-function refreshPreview() { $("preview").srcdoc = buildEmail(); }
+function refreshPreview() {
+  $("preview").srcdoc = buildEmail();
+  const r = COPY && COPY._week ? WEEK_REPEATS : [];
+  $("imgRepeat").textContent = r.length ? `⚠️ The same picture shows on more than one card for: ${r.join(", ")}. Add another image for it in step 3 and the preview updates.` : "";
+  show($("imgRepeat"), r.length > 0);
+}
 
 $("copyHtml").onclick = async () => { await navigator.clipboard.writeText(buildEmail()); $("copyHtml").textContent = "Copied ✓"; setTimeout(() => $("copyHtml").textContent = "Copy HTML", 1500); };
 

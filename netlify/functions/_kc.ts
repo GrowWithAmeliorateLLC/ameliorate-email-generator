@@ -300,15 +300,21 @@ function fileKey(n: string) {
 const bucketUrl = (n: string) => `https://storage.googleapis.com/kid-create/${n.split("/").map(encodeURIComponent).join("/")}`;
 // Best-guess branded graphic for each event name ("" when nothing fits). Randi can still change it.
 export async function suggestImages(eventNames: string[]): Promise<Record<string, string>> {
+  const sets = await suggestImageSets(eventNames);
+  return Object.fromEntries(Object.entries(sets).map(([k, v]) => [k, v[0] || ""]));
+}
+// Every bucket graphic that matches each event name, best first (max 6). The week calendar uses
+// the extras so a camp that shows up on more than one card doesn't repeat the same picture.
+export async function suggestImageSets(eventNames: string[]): Promise<Record<string, string[]>> {
   let files: string[] = [];
   try { files = (await brandedImages()).filter((f) => /\.(png|jpe?g)$/i.test(f)); } catch { return {}; }
   const keyed = files.map((f) => ({ f, k: fileKey(f) })).filter((x) => x.k.length >= 4);
-  const out: Record<string, string> = {};
+  const out: Record<string, string[]> = {};
   for (const name of eventNames) {
     const c = name.replace(/^\([^)]*\)\s*/, "").replace(/\s+copy$/i, "").trim();
     const base = [norm(c), norm(c.replace(/\band\b/gi, ""))];
     const alts = [...new Set([...base, ...base.map((a) => a.replace(PRE, ""))])].filter((a) => a.length >= 5);
-    let best: { score: number[]; f: string } | null = null;
+    const hits: { score: number[]; f: string }[] = [];
     for (const { f, k } of keyed) {
       let sc = 0;
       // Exact name match, or the file name contains the whole (long enough) event name,
@@ -320,10 +326,10 @@ export async function suggestImages(eventNames: string[]): Promise<Record<string
       }
       if (!sc) continue;
       const pen = (/instagram/i.test(f) ? 2 : 0) + (/^branded images\/\d\s+\d\s/.test(f) ? 1 : 0) + (f.includes("(") ? 1 : 0);
-      const score = [sc, -pen, -f.length];
-      if (!best || score[0] > best.score[0] || (score[0] === best.score[0] && (score[1] > best.score[1] || (score[1] === best.score[1] && score[2] > best.score[2])))) best = { score, f };
+      hits.push({ score: [sc, -pen, -f.length], f });
     }
-    out[name] = best ? bucketUrl(best.f) : "";
+    hits.sort((a, b) => (b.score[0] - a.score[0]) || (b.score[1] - a.score[1]) || (b.score[2] - a.score[2]));
+    out[name] = [...new Set(hits.map((h) => bucketUrl(h.f)))].slice(0, 6);
   }
   return out;
 }

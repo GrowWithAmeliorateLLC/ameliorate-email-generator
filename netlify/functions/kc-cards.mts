@@ -3,7 +3,7 @@
 // plus the parent cards they sit under (e.g. "NOV 3 CAMPS"), so the page can group them.
 // Each card also gets start/end time and price from the studio's public MyStudio event feed.
 import {
-  LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json, parseMyStudio, mystudioEvents, mystudioLookup, suggestImages,
+  LOCATIONS, F_TEXT, F_CONTENT, clickupToken, checkPass, cu, fieldValue, json, parseMyStudio, mystudioEvents, mystudioLookup, suggestImageSets,
 } from "./_kc.js";
 
 export default async (req: Request) => {
@@ -74,8 +74,8 @@ export default async (req: Request) => {
     found.forEach((r, i) => { if (r.status === "fulfilled" && r.value) ms[missing[i].split("|")[1]] = r.value; });
   }
   // Suggested branded graphic per event name, from the kid-create bucket.
-  const imgs = await suggestImages([...new Set(mine.map((e) => e.name))]).catch(() => ({} as Record<string, string>));
-  const withTimes = mine.map((e) => ({ ...e, ms: ms[parseMyStudio(e.link)!.event] || null, img: imgs[e.name] || "" }));
+  const imgs = await suggestImageSets([...new Set(mine.map((e) => e.name))]).catch(() => ({} as Record<string, string[]>));
+  const withTimes = mine.map((e) => ({ ...e, ms: ms[parseMyStudio(e.link)!.event] || null, img: (imgs[e.name] || [])[0] || "", imgs: imgs[e.name] || [] }));
 
   // Parent cards the events sit under (looked up if they fell outside the date window).
   const parentIds = [...new Set(withTimes.map((e) => e.parent).filter(Boolean))] as string[];
