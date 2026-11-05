@@ -76,6 +76,7 @@ The input lists EVENTS (each a promoted camp/event that runs on one or more days
 - email.eyebrow: short label over the headline, e.g. "THANKSGIVING BREAK · NOV 23 – 27" (name the break only if the input or notes name it; otherwise "NO SCHOOL WEEK · NOV 23 – 27" or "THIS WEEK AT KIDCREATE").
 - email.headline: max ~8 words, about the week as a whole, not one event.
 - email.intro1 / intro2: 1–2 sentences each. intro1 names 3–4 vivid real projects across the events. intro2 explains how to book (single day vs the full run, stacking a morning + add-on + afternoon into a full day) — only claim what the sessions support.
+- The same camp can appear as two EVENTS on different dates (e.g. Turkey Time Mess Fest 11/23 and 11/25). Each is its own card with its own date in "when"; don't merge them or say "both days" on one card. Their social captions must be worded differently (lead with that date).
 - email.cards: one per EVENT, in input order: {"eventIndex":N,"name":"","when":"Mon–Wed · 9 AM–12 PM","price":"$65 per day","description":"1–2 sentences from that event's own description","linkText":"Register"}. Price only from the input.
 - email.notes: exactly 3 "What you're walking into" lines {"label":"Drop-off, all supplies included.","text":"..."}: logistics from the descriptions (what to pack, add-ons like Lunch & Doodle with their price, a parent-benefit line for Parent's Time Off / drop-off days). Every ALSO MENTION add-on must appear in a note.
 - email.urgency: one short line if any description says spots are limited, else "".
@@ -120,7 +121,7 @@ export default async (req: Request) => {
   const week = !!b.weekMode;
   // Week mode: [{ name, sessionIndexes: number[], imageUrl }] — one entry per promoted event.
   const weekEvents: { name: string; sessionIndexes: number[]; imageUrl?: string }[] =
-    week && Array.isArray(b.weekEvents) ? b.weekEvents.slice(0, 8) : [];
+    week && Array.isArray(b.weekEvents) ? b.weekEvents.slice(0, 12) : [];
   if (week && !weekEvents.length) return json({ error: "Week calendar mode needs at least one event to promote." }, 400);
   const wanted = [svc.email && "email", svc.sms && "sms", svc.social && "social"].filter(Boolean).join(", ");
 
@@ -130,7 +131,7 @@ export default async (req: Request) => {
     return `EVENT [${i}] ${ev.name}
   Sessions: ${days}
   Ages: ${ss[0]?.ages || "?"}
-  Image: ${okImg(ev.imageUrl) ? `attached (labeled EVENT [${i}])` : "(none)"}
+  Image: ${!okImg(ev.imageUrl) ? "(none)" : (() => { const j = weekEvents.findIndex((e) => e.imageUrl === ev.imageUrl); return j < i ? `same as EVENT [${j}]` : `attached (labeled EVENT [${i}])`; })()}
   Description:
   ${(ss[0]?.content || "(none)").replace(/\n/g, "\n  ")}`;
   }).join("\n\n");
@@ -154,8 +155,10 @@ ANYTHING ELSE TO INCLUDE: ${b.notes || "(nothing)"}`;
 
   const content: any[] = [];
   if (week) {
+    const sent = new Set<string>();
     weekEvents.forEach((ev, i) => {
-      if (okImg(ev.imageUrl)) {
+      if (okImg(ev.imageUrl) && !sent.has(ev.imageUrl!)) {
+        sent.add(ev.imageUrl!);
         content.push({ type: "text", text: `EVENT [${i}] image (${ev.name}):` });
         content.push({ type: "image", source: { type: "url", url: ev.imageUrl } });
       }

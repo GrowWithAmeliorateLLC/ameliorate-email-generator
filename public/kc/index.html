@@ -116,7 +116,7 @@
         <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
       </div>
       <div id="weekBox" class="hide">
-        <label>Images per camp (from the kid-create bucket). The first one goes on the camp's card and its SOCIAL task. If a camp shows up on more than one card, the extras are used so the picture doesn't repeat. The app fills in its best matches by name (branded graphic first, then real project photos), so check each one.</label>
+        <label>Images per camp (from the kid-create bucket). The first one goes on the camp's card and its SOCIAL task. A camp that runs on more than one date gets a card (and SOCIAL task) per date, each linking to that date's registration; extra images rotate across those cards. The app fills in its best matches by name (branded graphic first, then real project photos), so check each one.</label>
         <div id="weekImgs"></div>
         <div class="row">
           <div><label>Days with nothing scheduled: title (optional)</label><input type="text" id="gapTitle" placeholder="Happy Thanksgiving!"></div>
@@ -403,7 +403,7 @@ function renderWeekImgs() {
         ${j ? `<button type="button" class="ghost wdel" style="padding:4px 10px" data-i="${i}" data-j="${j}" title="Remove">✕</button>` : ""}</div>
         ${isImg(u) ? `<img src="${esc(u)}">` : ""}`).join("")}
       <div style="margin-top:6px"><button type="button" class="ghost wadd" style="padding:4px 10px;font-size:12px" data-i="${i}">+ Add another image</button>
-        <span class="muted">Used if this camp shows up on more than one card.</span></div>
+        <span class="muted">Optional. If this camp runs on more than one date, each date's card takes the next image.</span></div>
       ${alts.length ? `<div class="muted" style="margin-top:6px">Other matches in the bucket (click to add):</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">${alts.map(u => `<img class="walt" data-i="${i}" data-u="${esc(u)}" src="${esc(u)}" title="Add this image" style="max-width:90px;cursor:pointer;margin:0">`).join("")}</div>` : ""}
       <div class="flag hide" id="wdup${i}"></div></div>`;
@@ -486,7 +486,9 @@ $("gen").onclick = async () => {
   WEEK = [];
   if (week) {
     const m = new Map();
-    SESS.forEach((s, i) => { const k = s.name.toLowerCase(); if (!m.has(k)) m.set(k, { name: s.name, idx: [], first: s }); m.get(k).idx.push(i); });
+    // One EVENT per camp per date: a camp that runs on two days gets two cards, each registering for its own day
+    // (Randi, 11/5: the merged card only linked to the first date, and repeat dates can sit on different website pages).
+    SESS.forEach((s, i) => { const k = `${s.name.toLowerCase()}|${s._day}`; if (!m.has(k)) m.set(k, { name: s.name, idx: [], first: s }); m.get(k).idx.push(i); });
     WEEK = [...m.values()];
     WEEK.forEach(w => Object.defineProperty(w, "imageUrl", { get: () => campImgs(w.name)[0] || "" }));
     const noImg = WEEK.filter(w => !bucket(w.imageUrl)).map(w => w.name);
@@ -727,11 +729,12 @@ function buildWeekEmail() {
   const cards = (em.cards || []).map(c => ({ c, w: WEEK[c.eventIndex] })).filter(x => x.w);
   // Give every card its own picture: a camp that shows up on more than one card steps through its images,
   // skipping any already used on another card. Only repeats when it runs out (and says so).
+  // The same camp on two dates may share its picture (fine per Randi); if extra images were added, they rotate.
   const used = new Set(), repeats = new Set();
   cards.forEach(x => {
-    const list = campImgs(x.w.name);
-    x.img = list.find(u => !used.has(u)) || list[cards.filter(y => y.w === x.w).indexOf(x) % Math.max(list.length, 1)] || "";
-    if (used.has(x.img)) repeats.add(x.w.name);
+    const list = campImgs(x.w.name), same = cards.filter(y => y.w.name === x.w.name);
+    x.img = list.find(u => !used.has(u)) || list[same.indexOf(x) % Math.max(list.length, 1)] || "";
+    if (used.has(x.img) && same.length < 2) repeats.add(x.w.name);  // only flag a picture shared by different camps
     used.add(x.img);
   });
   WEEK_REPEATS = [...repeats];
