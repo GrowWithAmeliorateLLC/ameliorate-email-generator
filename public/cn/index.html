@@ -434,10 +434,10 @@ function buildEmailRaw() {
     </td>
   </tr>`).join("");
   const dot = `&nbsp;&middot;&nbsp;`;
-  const contact = [L.phone ? `<a href="tel:${esc(L.phone.replace(/[^\d+]/g, ""))}" style="color:#9fc9e3;">${esc(L.phone)}</a>` : "",
-                   L.email ? `<a href="mailto:${esc(L.email)}" style="color:#9fc9e3;">${esc(L.email)}</a>` : ""].filter(Boolean).join(dot);
-  const social = [L.facebook ? `<a href="${esc(L.facebook)}" target="_blank" rel="noopener noreferrer" style="color:#adef32;">Facebook</a>` : "",
-                  L.instagram ? `<a href="${esc(L.instagram)}" target="_blank" rel="noopener noreferrer" style="color:#adef32;">Instagram</a>` : ""].filter(Boolean).join(dot);
+  const contact = [L.phone ? `<a href="tel:${esc(L.phone.replace(/[^\d+]/g, ""))}" style="color:#9fc9e3; text-decoration:none;"><span style="color:#9fc9e3;">${esc(L.phone)}</span></a>` : "",
+                   L.email ? `<a href="mailto:${esc(L.email)}" style="color:#9fc9e3; text-decoration:none;"><span style="color:#9fc9e3;">${esc(L.email)}</span></a>` : ""].filter(Boolean).join(dot);
+  const social = [L.facebook ? `<a href="${esc(L.facebook)}" target="_blank" rel="noopener noreferrer" style="color:#adef32; text-decoration:none;"><span style="color:#adef32;">Facebook</span></a>` : "",
+                  L.instagram ? `<a href="${esc(L.instagram)}" target="_blank" rel="noopener noreferrer" style="color:#adef32; text-decoration:none;"><span style="color:#adef32;">Instagram</span></a>` : ""].filter(Boolean).join(dot);
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml">
 <head>
@@ -532,9 +532,9 @@ ${alsoHtml}
     <td align="center" style="background:#000000; padding:28px 24px; font-family:${F};">
       <div style="font-family:${FD}; font-size:18px; font-weight:800; letter-spacing:1px; color:#FFFFFF;">${esc(L.name)}</div>
       ${L.address ? `<div style="margin-top:6px; font-size:13px; color:#c9d3dc;">${esc(L.address)}</div>` : ""}
-      ${contact ? `<div style="margin-top:6px; font-size:13px;">${contact}</div>` : ""}
-      <div style="margin-top:14px; font-size:13px; font-weight:700;">
-        <a href="${esc(L.page)}" target="_blank" rel="noopener noreferrer" style="color:#adef32;">Website</a>${social ? dot + social : ""}
+      ${contact ? `<div style="margin-top:6px; font-size:13px; color:#9fc9e3;">${contact}</div>` : ""}
+      <div style="margin-top:14px; font-size:13px; font-weight:700; color:#adef32;">
+        <a href="${esc(L.page)}" target="_blank" rel="noopener noreferrer" style="color:#adef32; text-decoration:none;"><span style="color:#adef32;">Website</span></a>${social ? dot + social : ""}
       </div>
     </td>
   </tr>
