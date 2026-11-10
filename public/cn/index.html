@@ -498,7 +498,7 @@ ${esc($("preheader").value)}
   <tr>
     <td style="background:#1a1a2e;">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-        <tr>${band("WHEN", b.date, b.time, "34%")}${band("AGES", b.ages, b.agesSub, "33%")}${band("PRICE", b.price, b.priceSub, "33%")}
+        <tr>${(() => { const cells = [["WHEN", b.date, b.time]]; if (String(b.ages || "").trim() && SESS.some(s => String(s.ages || "").trim())) cells.push(["AGES", b.ages, b.agesSub]); cells.push(["PRICE", b.price, b.priceSub]); const w = cells.length === 3 ? ["34%", "33%", "33%"] : ["50%", "50%"]; return cells.map((c, i) => band(c[0], c[1], c[2], w[i])).join(""); })()}
         </tr>
       </table>
     </td>
