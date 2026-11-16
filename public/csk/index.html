@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>CSK Camp Campaigns</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --navy:#0B2447; --orange:#F7941D; --green:#3BB54A; --sky:#00AEEF; --ink:#1A1A1A; --soft:#4A4A4A; --ice:#E6F6FD; --pale:#FFF4E6; --line:#dde3ea; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Nunito,Arial,sans-serif; color:var(--ink); background:#f5f7fa; }
+  header { background:var(--navy); color:#fff; padding:14px 20px; display:flex; align-items:center; gap:14px; }
+  header img { height:34px; }
+  header h1 { font-size:18px; margin:0; font-weight:900; }
+  header .sub { font-size:12px; opacity:.85; }
+  main { max-width:1100px; margin:0 auto; padding:18px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:16px; }
+  .card h2 { font-size:15px; margin:0 0 10px; display:flex; align-items:center; gap:8px; }
+  .step { background:var(--navy); color:#fff; border-radius:50%; width:22px; height:22px; font-size:12px; display:inline-flex; align-items:center; justify-content:center; flex:none; }
+  label { font-size:12px; font-weight:700; display:block; margin:8px 0 3px; }
+  input[type=text], input[type=password], input[type=date], select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px; font:inherit; font-size:14px; background:#fff; }
+  textarea { min-height:70px; resize:vertical; }
+  button { font:inherit; font-weight:800; border:0; border-radius:999px; padding:10px 20px; cursor:pointer; background:var(--orange); color:#fff; }
+  button.ghost { background:#fff; color:var(--navy); border:2px solid var(--navy); padding:8px 16px; }
+  button.small { padding:4px 12px; font-size:12px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .row > * { flex:1; min-width:140px; }
+  .muted { color:#5b6670; font-size:12px; }
+  .err { background:#fdecec; color:#8a1111; border-radius:8px; padding:10px 12px; font-size:13px; margin-top:10px; white-space:pre-wrap; }
+  .ok { background:#e8f6ea; color:#1d5b26; border-radius:8px; padding:10px 12px; font-size:13px; margin-top:10px; }
+  .flag { background:var(--pale); border-left:4px solid var(--orange); padding:8px 12px; border-radius:6px; font-size:13px; margin:6px 0; }
+  .info { background:var(--ice); border-left:4px solid var(--sky); padding:8px 12px; border-radius:6px; font-size:13px; margin:6px 0; }
+  .week { font-size:13px; font-weight:900; color:var(--navy); margin:16px 0 4px; display:flex; align-items:center; gap:10px; }
+  .camp { border:1px solid var(--line); border-radius:10px; padding:8px 12px; margin:5px 0; display:flex; gap:10px; align-items:flex-start; }
+  .camp input { margin-top:4px; }
+  .camp .meta { font-size:12px; color:#5b6670; }
+  .pill { display:inline-block; font-size:11px; font-weight:800; padding:2px 8px; border-radius:999px; background:var(--ice); color:var(--navy); }
+  .pill.warn { background:var(--pale); color:#8a4b00; }
+  .sess { background:#f7f9fb; border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .opt { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+  .opt.sel { border-color:var(--orange); box-shadow:0 0 0 2px #f7941d22; }
+  .count { font-size:11px; color:#5b6670; margin-top:4px; }
+  .split { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  @media (max-width:900px) { .split { grid-template-columns:1fr; } }
+  iframe { width:100%; height:900px; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .hide { display:none !important; }
+  .checks label { display:inline-flex; align-items:center; gap:6px; margin-right:16px; font-size:14px; }
+  table.due td { padding:4px 8px 4px 0; font-size:13px; }
+  ul.cc { list-style:none; padding:0; margin:6px 0 0; font-size:13px; }
+  ul.cc li { margin:3px 0; }
+</style>
+</head>
+<body>
+<header>
+  <img src="https://charlottesouth.clubscikidz.com/wp-content/uploads/2021/11/Club-SciKidz-Logo-hz-wht-600x187.png" alt="Club SciKidz">
+  <div>
+    <h1>CSK Camp Campaigns</h1>
+    <div class="sub">Constant Contact email (and SMS once texting is live) → straight into ClickUp</div>
+  </div>
+</header>
+<main>
+
+  <section class="card" id="gate">
+    <h2><span class="step">🔒</span>Passcode</h2>
+    <div class="row">
+      <div><input type="password" id="pass" placeholder="Passcode from Amy"></div>
+      <div style="flex:0"><button id="enter">Enter</button></div>
+    </div>
+    <div id="ready" class="muted" style="margin-top:8px"></div>
+    <div id="gateErr" class="err hide"></div>
+  </section>
+
+  <div id="app" class="hide">
+
+    <section class="card">
+      <h2><span class="step">1</span>Location</h2>
+      <div class="row">
+        <div><label>Club SciKidz location</label><select id="loc"></select></div>
+        <div>
+          <label>Services</label>
+          <div class="checks" style="padding-top:6px">
+            <label><input type="checkbox" id="svcEmail" checked disabled> Email</label>
+            <label><input type="checkbox" id="svcSms" disabled> SMS</label>
+          </div>
+        </div>
+      </div>
+      <div id="locNote" class="muted" style="margin-top:6px"></div>
+      <div id="cadence" class="hide"></div>
+      <div id="locErr" class="err hide"></div>
+    </section>
+
+    <section class="card">
+      <h2><span class="step">2</span>Pick the camp(s)</h2>
+      <div class="muted">One camp = a single-camp email with a WHEN / AGES / PRICE band. Two or more = a roundup with one card per camp (a whole week, an age group, or an early-bird push). Prices and spots are checked live against ACTIVE.</div>
+      <div id="camps"><div class="muted" style="margin-top:8px">Choose a location to load its camps.</div></div>
+    </section>
+
+    <section class="card hide" id="detailsCard">
+      <h2><span class="step">3</span>Details</h2>
+      <div class="muted">Filled from the ClickUp card and ACTIVE. Fix anything that's off before you generate.</div>
+      <div id="sessions"></div>
+      <div class="row">
+        <div><label>Hero image URL (https, JPG or PNG)</label><input type="text" id="img" placeholder="https://storage.googleapis.com/csk_references/..."></div>
+        <div><label>Main button link</label><input type="text" id="ctaLink"></div>
+      </div>
+      <img id="imgPrev" class="hide" style="max-width:220px;margin-top:8px;border-radius:8px">
+      <label>Anything else to include? (optional)</label>
+      <input type="text" id="notes" placeholder='e.g. "push the early-bird deadline"'>
+      <div style="margin-top:14px"><button id="gen">Generate</button> <span id="genStatus" class="muted"></span></div>
+      <div id="genErr" class="err hide"></div>
+    </section>
+
+    <section id="results" class="hide">
+      <div class="card" id="angleCard"></div>
+
+      <div class="card" id="emailCard">
+        <h2><span class="step">4</span>Email</h2>
+        <div class="split">
+          <div>
+            <label>Subject line (pick one, or edit)</label>
+            <div id="subjects"></div>
+            <label>Preheader</label><input type="text" id="preheader">
+            <label>Eyebrow (small label over the headline)</label><input type="text" id="eyebrow">
+            <label>Headline (wrap one word in *asterisks* for the orange accent)</label><input type="text" id="headline">
+            <label>Intro paragraph 1</label><textarea id="intro1"></textarea>
+            <label>Intro paragraph 2</label><textarea id="intro2"></textarea>
+            <label>Urgency bar (leave blank to hide)</label><input type="text" id="urgency">
+            <label>Note under the button (optional)</label><input type="text" id="ctaNote">
+            <div class="card" style="margin-top:14px;padding:12px 14px">
+              <b>Constant Contact check</b>
+              <ul class="cc" id="ccList"></ul>
+            </div>
+            <div class="row" style="margin-top:6px">
+              <div style="flex:0"><button class="ghost" id="copyHtml">Copy HTML</button></div>
+              <div style="flex:0"><button class="ghost" id="dlHtml">Download .html</button></div>
+            </div>
+          </div>
+          <div><iframe id="preview" title="Email preview"></iframe></div>
+        </div>
+      </div>
+
+      <div class="card hide" id="smsCard">
+        <h2><span class="step">5</span>SMS</h2>
+        <div class="muted">The link and "Reply STOP to opt out" are added automatically. Counts include them.</div>
+        <div id="smsOpts"></div>
+        <label>Last call</label><textarea id="lastCall"></textarea>
+        <div class="count" id="lastCount"></div>
+      </div>
+
+      <div class="card">
+        <h2><span class="step">6</span>Push to ClickUp</h2>
+        <label>Put the subtasks under this camp card</label>
+        <select id="parent"></select>
+        <table class="due" style="margin-top:10px">
+          <tr><td><b>EMAIL</b> due</td><td><input type="date" id="dueEmail"></td><td class="muted" id="ruleEmail">Keeps one email every 5 days; never Mon/Sat</td></tr>
+          <tr id="dueSmsRow" class="hide"><td><b>SMS</b> due</td><td><input type="date" id="dueSms"></td><td class="muted">2 days after the email</td></tr>
+        </table>
+        <div id="dueNote" class="muted"></div>
+        <div style="margin-top:14px"><button id="push">Push to ClickUp</button> <span id="pushStatus" class="muted"></span></div>
+        <div id="pushOut"></div>
+        <div class="info" style="margin-top:14px"><b>Loading it in Constant Contact:</b> Campaigns → Create → Email → <b>Code your own</b> (custom code). Paste the HTML from the EMAIL task (or Copy HTML here), send a test to hi@growwithameliorate.com, check it on desktop and phone, then schedule once Amy approves. Constant Contact adds the address + unsubscribe footer itself. If it says "missing required HTML tags" or "tag should be paired", re-copy the whole thing; don't fix it by hand in the editor.</div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+const $ = (id) => document.getElementById(id);
+const show = (el, on = true) => el.classList.toggle("hide", !on);
+let PASS = sessionStorage.getItem("kcPass") || "";
+let LOCS = {}, CAMPS = [], LAST_EMAIL = null, ACTIVE_OK = false, SEL = [], CAMP_IN = [], COPY = null;
+let state = { subjectIdx: 0, smsIdx: 0 };
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, { ...opts, headers: { "Content-Type": "application/json", "x-kc-pass": PASS, ...(opts.headers || {}) } });
+  let body = null; try { body = await res.json(); } catch {}
+  if (!res.ok) throw new Error((body && body.error) || `Error ${res.status}`);
+  return body;
+}
+function esc(s) { return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+// ---------- dates ----------
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fromYmd = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const usShort = (d) => `${DOW[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}`;
+const today0 = () => { const t = new Date(); return new Date(t.getFullYear(), t.getMonth(), t.getDate()); };
+
+// ---------- gate ----------
+async function loadConfig() {
+  const c = await fetch("/api/csk/config").then(r => r.json());
+  c.locations.forEach(l => LOCS[l.id] = l);
+  const miss = [];
+  if (!c.ready.claude) miss.push("Claude key");
+  if (!c.ready.clickup) miss.push("ClickUp token");
+  $("ready").textContent = miss.length ? `Not set up yet on Netlify: ${miss.join(", ")}. Ask Amy.` : "";
+  $("loc").innerHTML = `<option value="">Choose a location…</option>` + c.locations.map(l => `<option value="${l.id}">${esc(l.short)}</option>`).join("");
+  return c;
+}
+async function enter() {
+  PASS = $("pass").value.trim() || PASS;
+  show($("gateErr"), false);
+  try {
+    await api(`/api/csk/cards?loc=${Object.keys(LOCS)[0]}`);
+    sessionStorage.setItem("kcPass", PASS);
+    show($("gate"), false); show($("app"));
+  } catch (e) { $("gateErr").textContent = e.message; show($("gateErr")); }
+}
+$("enter").onclick = enter;
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") enter(); });
+
+// ---------- camps ----------
+$("loc").onchange = async () => {
+  const id = $("loc").value, L = LOCS[id];
+  SEL = []; show($("detailsCard"), false); show($("results"), false); show($("locErr"), false); show($("cadence"), false);
+  if (!L) return;
+  $("svcSms").disabled = !L.smsLive; $("svcSms").checked = L.smsLive;
+  $("locNote").textContent = L.emailInScope ? (L.smsLive ? "" : "Texting isn't live yet (waiting on Constant Contact approval), so this builds email only.") : "This location doesn't pay for email.";
+  $("camps").innerHTML = `<div class="muted" style="margin-top:8px">Loading camps…</div>`;
+  try {
+    const j = await api(`/api/csk/cards?loc=${id}`);
+    CAMPS = j.camps; LAST_EMAIL = j.lastEmail; ACTIVE_OK = j.active && j.active.ok;
+    renderCadence(); renderCamps();
+    if (!ACTIVE_OK) { $("locErr").textContent = "Couldn't reach ACTIVE, so prices and spots come from the ClickUp cards only. Double-check them."; show($("locErr")); }
+  } catch (e) { $("camps").innerHTML = ""; $("locErr").textContent = e.message; show($("locErr")); }
+};
+function renderCadence() {
+  const box = $("cadence");
+  if (!LAST_EMAIL) { box.className = "flag"; box.textContent = "No EMAIL task found on this list yet. The weekly audit expects one email sent or scheduled every 5 days."; return; }
+  const last = new Date(LAST_EMAIL), d0 = new Date(last.getFullYear(), last.getMonth(), last.getDate());
+  const by = addDays(d0, 5), late = by < today0();
+  box.className = late ? "flag" : "info";
+  box.textContent = late ? `Newest EMAIL task was due ${usShort(d0)}. The 5-day window passed ${usShort(by)}, so schedule this one as soon as it's approved.`
+                         : `Newest EMAIL task is due ${usShort(d0)}. Keep the next one on or before ${usShort(by)}.`;
+}
+function priceText(c) {
+  const a = c.active;
+  if (a && a.earlyBird && a.price && a.earlyBird !== a.price && a.earlyBirdEnds && fromYmd(a.earlyBirdEnds) >= today0()) {
+    const eb = addDays(fromYmd(a.earlyBirdEnds), -1); // ACTIVE stores the cutoff as the next morning
+    return `$${a.earlyBird}/week early bird through ${eb.getMonth() + 1}/${eb.getDate()}, then $${a.price}/week`;
+  }
+  if (a && a.price) return `$${a.price}/week`;
+  return c.price || "";
+}
+function tier(ages) { const m = /(\d+)/.exec(ages || ""); const n = m ? +m[1] : 9; return n <= 6 ? "#F7941D" : n <= 8 ? "#3BB54A" : "#00AEEF"; }
+function renderCamps() {
+  if (!CAMPS.length) { $("camps").innerHTML = `<div class="muted" style="margin-top:8px">No upcoming camp cards on this ClickUp list.</div>`; return; }
+  let html = "", lastWeek = "";
+  CAMPS.forEach((c, i) => {
+    const d = fromYmd(c.start);
+    const wk = `Week of ${MON[d.getMonth()]} ${d.getDate()}`;
+    if (wk !== lastWeek) { html += `<div class="week">${wk} <button class="ghost small selweek" data-w="${c.start}">Select whole week</button></div>`; lastWeek = wk; }
+    const a = c.active;
+    const badge = !ACTIVE_OK ? "" : a ? `<span class="pill">✓ ACTIVE ${a.earlyBird ? `$${a.earlyBird}/$${a.price}` : a.price ? `$${a.price}` : ""}${a.spotsLeft != null ? ` · ${a.spotsLeft} spots` : ""}</span>` : `<span class="pill warn">not found in ACTIVE</span>`;
+    html += `<label class="camp"><input type="checkbox" class="pick" data-i="${i}">
+      <div><div><b>${esc(c.name.replace(/^\d+\/\d+:\s*/, ""))}</b> ${badge}</div>
+      <div class="meta">${esc(c.dates || usShort(d))} · <a href="${esc(c.link)}" target="_blank" rel="noopener">camp page ↗</a> · <a href="${esc(c.url)}" target="_blank" rel="noopener">ClickUp card ↗</a></div></div></label>`;
+  });
+  $("camps").innerHTML = html;
+  document.querySelectorAll(".pick").forEach(cb => cb.onchange = updateSelection);
+  document.querySelectorAll(".selweek").forEach(b => b.onclick = (e) => { e.preventDefault();
+    document.querySelectorAll(".pick").forEach(cb => { if (CAMPS[+cb.dataset.i].start === b.dataset.w) cb.checked = true; }); updateSelection(); });
+}
+function updateSelection() {
+  SEL = [...document.querySelectorAll(".pick")].filter(cb => cb.checked).map(cb => CAMPS[+cb.dataset.i]);
+  const L = LOCS[$("loc").value];
+  $("sessions").innerHTML = SEL.map((c, k) => `<div class="sess">
+    <div><b>${esc(c.name)}</b> ${c.active ? "" : ACTIVE_OK ? '<span class="pill warn">not in ACTIVE: check it still runs</span>' : ""}</div>
+    <div class="row">
+      <div><label>Dates</label><input type="text" id="c${k}_dates" value="${esc((c.dates || "").replace(/, Mon-Fri.*$/, ""))}"></div>
+      <div><label>Venue</label><input type="text" id="c${k}_loc" value="${esc((c.location || "").replace(/,.*$/, ""))}"></div>
+      <div><label>Ages</label><input type="text" id="c${k}_ages" value="${esc(c.ages)}"></div>
+      <div style="flex:2"><label>Price</label><input type="text" id="c${k}_price" value="${esc(priceText(c))}"></div>
+    </div>
+    <label>Description</label><textarea id="c${k}_desc">${esc(c.description)}</textarea>
+  </div>`).join("");
+  $("ctaLink").value = SEL.length === 1 ? SEL[0].link : (L ? L.campsPage : "");
+  show($("detailsCard"), SEL.length > 0);
+}
+$("img").oninput = () => { const u = $("img").value.trim(); $("imgPrev").src = u; show($("imgPrev"), /^https:\/\//.test(u)); };
+
+// ---------- generate ----------
+$("gen").onclick = async () => {
+  show($("genErr"), false);
+  const img = $("img").value.trim();
+  if (img && !/^https:\/\/.+\.(png|jpe?g)(\?.*)?$/i.test(img)) { $("genErr").textContent = "The image has to be an https link to a JPG or PNG (Constant Contact can't show .avif or .webp)."; show($("genErr")); return; }
+  CAMP_IN = SEL.map((c, k) => ({ name: c.name.replace(/^\d+\/\d+:\s*/, "").replace(/\s*\(Ages.*$/, ""), dates: $(`c${k}_dates`).value.trim(), location: $(`c${k}_loc`).value.trim(),
+    ages: $(`c${k}_ages`).value.trim(), price: $(`c${k}_price`).value.trim(), description: $(`c${k}_desc`).value.trim(),
+    spotsLeft: c.active ? c.active.spotsLeft : null, link: c.link, id: c.id }));
+  const missing = CAMP_IN.filter(c => !c.dates || !c.price).map(c => c.name);
+  if (missing.length) { $("genErr").textContent = `Add the dates and price for: ${missing.join(", ")}`; show($("genErr")); return; }
+  $("gen").disabled = true; $("genStatus").textContent = "Writing… (about 20 seconds)";
+  try {
+    const j = await api("/api/csk/generate", { method: "POST", body: JSON.stringify({ loc: $("loc").value, camps: CAMP_IN, imageUrl: img, sms: $("svcSms").checked, notes: $("notes").value.trim() }) });
+    COPY = j.copy; COPY._sms = $("svcSms").checked && !!COPY.sms;
+    renderResults(); $("genStatus").textContent = "";
+  } catch (e) { $("genErr").textContent = e.message; show($("genErr")); $("genStatus").textContent = ""; }
+  finally { $("gen").disabled = false; }
+};
+
+// ---------- email template (locked, Constant Contact-safe) ----------
+// Constant Contact rules this template keeps: exactly one DOCTYPE/html/head/body, a plain <body> tag with
+// no attributes (all styling sits on the wrapper table), every void tag self-closed (XHTML style), <style>
+// only in <head>, no script/form/iframe/video/svg, absolute https links, & escaped, and no address or
+// unsubscribe (Constant Contact adds its own footer).
+const F = "font-family:Nunito,Arial,Helvetica,sans-serif;";
+const accent = (s) => esc(s).replace(/\*([^*]+)\*/g, '<em style="color:#F7941D; font-style:italic;">$1</em>');
+function buildEmail() {
+  const em = COPY.email, L = LOCS[$("loc").value];
+  const subject = $("subjectEdit") ? $("subjectEdit").value : em.subjects[state.subjectIdx];
+  const img = $("img").value.trim(), cta = $("ctaLink").value.trim() || L.campsPage;
+  const urg = $("urgency").value.trim(), note = $("ctaNote").value.trim(), eyebrow = $("eyebrow").value.trim();
+  const single = CAMP_IN.length === 1, b = em.band || {};
+  const band = (label, val, sub, w) => `
+          <td class="bandcell" width="${w}" align="center" valign="top" style="padding:16px 8px; ${F}">
+            <div class="bandlabel" style="font-size:11px; font-weight:800; letter-spacing:1.5px; color:#F7941D;">${label}</div>
+            <div class="bandval" style="font-size:18px; font-weight:800; color:#FFFFFF; line-height:1.3;">${esc(val)}</div>
+            <div class="bandsub" style="font-size:13px; color:#CFE3F2;">${esc(sub)}</div>
+          </td>`;
+  const notes = (em.notes || []).filter(n => n && (n.label || n.text));
+  const cards = (em.cards || []).filter(c => CAMP_IN[c.campIndex]);
+  const cardHtml = cards.map((c, i) => { const ci = CAMP_IN[c.campIndex];
+    return `
+  <tr>
+    <td class="px" style="padding:${i ? 12 : 22}px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td width="6" style="background:${tier(ci.ages)}; font-size:0; line-height:0;">&nbsp;</td>
+          <td style="background:#F4F7FB; padding:16px 18px; ${F}">
+            <div style="font-size:12px; font-weight:800; letter-spacing:1px; color:${tier(ci.ages)};">AGES ${esc(ci.ages).replace(/-/g, "&ndash;")}</div>
+            <div style="font-size:19px; font-weight:900; color:#0B2447; margin-top:2px;">${esc(c.name || ci.name)}</div>
+            <div style="font-size:13px; font-weight:700; color:#4A4A4A; margin-top:2px;">${esc(c.when)}</div>
+            <div style="font-size:15px; line-height:1.55; color:#1A1A1A; margin:6px 0 10px;">${esc(c.description)}</div>
+            <a href="${esc(ci.link)}" target="_blank" style="font-size:15px; font-weight:800; color:#F7941D; text-decoration:none;">${esc(c.linkText || "See the camp")} &rarr;</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>`; }).join("");
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light only" />
+<meta name="supported-color-schemes" content="light only" />
+<title>${esc(subject)}</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&amp;display=swap" rel="stylesheet" />
+<style type="text/css">
+  :root { color-scheme: light only; supported-color-schemes: light only; }
+  body { margin:0; padding:0; background:#FFFFFF; }
+  a { text-decoration:none; }
+  @media (max-width:600px) {
+    .wrap { width:100% !important; }
+    .px { padding-left:20px !important; padding-right:20px !important; }
+    .bandcell  { display:table-cell !important; padding:12px 4px !important; }
+    .bandlabel { font-size:9px !important; letter-spacing:0.8px !important; }
+    .bandval   { font-size:14px !important; line-height:1.35 !important; }
+    .bandsub   { font-size:11px !important; }
+    .h1 { font-size:26px !important; line-height:1.2 !important; }
+  }
+</style>
+</head>
+<body>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="background:#FFFFFF; margin:0; padding:0;">
+<tr><td align="center">
+
+<div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#FFFFFF;">${esc($("preheader").value)}</div>
+
+<table role="presentation" class="wrap" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; background:#FFFFFF;">
+
+  <tr>
+    <td align="center" bgcolor="#0B2447" style="background:#0B2447; padding:22px 20px;">
+      <a href="${esc(L.site)}" target="_blank"><img src="https://charlottesouth.clubscikidz.com/wp-content/uploads/2021/11/Club-SciKidz-Logo-hz-wht-600x187.png" width="220" alt="${esc(L.name)}" border="0" style="display:block; width:220px; max-width:100%; height:auto; border:0;" /></a>
+    </td>
+  </tr>
+${img ? `
+  <tr>
+    <td style="padding:0; font-size:0; line-height:0;">
+      <a href="${esc(cta)}" target="_blank"><img src="${esc(img)}" width="600" alt="${esc(em.imageAlt || "Campers doing hands-on science at Club SciKidz")}" border="0" style="display:block; width:100%; max-width:100%; height:auto; border:0;" /></a>
+    </td>
+  </tr>` : ""}
+${single && b && b.date ? `
+  <tr>
+    <td bgcolor="#0B2447" style="background:#0B2447; border-top:4px solid #F7941D;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>${band("WHEN", b.date, b.time, "34%")}${band("AGES", b.ages, b.agesSub, "33%")}${band("PRICE", b.price, b.priceSub, "33%")}
+        </tr>
+      </table>
+    </td>
+  </tr>` : ""}
+
+  <tr>
+    <td class="px" style="padding:32px 40px 6px; ${F}">
+      ${eyebrow ? `<div style="font-size:12px; font-weight:800; letter-spacing:1.6px; color:#00AEEF; text-transform:uppercase; margin:0 0 10px;">${esc(eyebrow)}</div>` : ""}
+      <div class="h1" style="font-size:30px; font-weight:900; line-height:1.2; color:#0B2447;">${accent($("headline").value)}</div>
+      <p style="margin:16px 0 0; font-size:16px; line-height:1.6; color:#1A1A1A;">${esc($("intro1").value)}</p>
+      ${$("intro2").value.trim() ? `<p style="margin:12px 0 0; font-size:16px; line-height:1.6; color:#1A1A1A;">${esc($("intro2").value)}</p>` : ""}
+    </td>
+  </tr>
+${single && notes.length ? `
+  <tr>
+    <td class="px" style="padding:22px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="background:#F4F7FB; padding:20px 22px; ${F} font-size:15px; line-height:1.6; color:#1A1A1A;">
+            <div style="font-size:12px; font-weight:800; letter-spacing:1.6px; color:#3BB54A; text-transform:uppercase; margin:0 0 8px;">What campers do</div>
+            ${notes.map((n, i) => `<div style="margin:0 0 ${i === notes.length - 1 ? 0 : 6}px;"><strong>${esc(n.label)}</strong> ${esc(n.text)}</div>`).join("\n            ")}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>` : ""}${single ? "" : cardHtml}
+${urg ? `
+  <tr>
+    <td class="px" style="padding:22px 40px 0;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr><td align="center" bgcolor="#FFF4E6" style="background:#FFF4E6; border-left:5px solid #F7941D; padding:12px 16px; ${F} font-size:15px; font-weight:800; color:#0B2447;">${esc(urg)}</td></tr>
+      </table>
+    </td>
+  </tr>` : ""}
+
+  <tr>
+    <td align="center" class="px" style="padding:26px 40px 6px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" bgcolor="#F7941D" style="background:#F7941D; border-radius:50px;">
+            <a href="${esc(cta)}" target="_blank" style="display:inline-block; padding:16px 40px; ${F} font-size:17px; font-weight:900; color:#FFFFFF; text-decoration:none; border-radius:50px;">Save Your Spot</a>
+          </td>
+        </tr>
+      </table>
+      ${note ? `<p style="margin:12px 0 0; ${F} font-size:13px; line-height:1.5; color:#4A4A4A;">${esc(note)}</p>` : ""}
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" class="px" style="padding:30px 40px 30px;">
+      <img src="https://www.clubscikidz.com/wp-content/uploads/2021/11/STEM.org-Accredited-Education-Program-STM_BrandAssets_POS_BADGE_ACC_HOR.png" width="170" alt="STEM.org Accredited Education Program" border="0" style="display:block; width:170px; max-width:100%; height:auto; border:0; margin:0 auto;" />
+      <div style="${F} font-size:16px; font-weight:800; color:#0B2447; margin-top:14px;">Real science. Real experiments. Real fun.</div>
+    </td>
+  </tr>
+
+  <tr>
+    <td align="center" bgcolor="#0B2447" style="background:#0B2447; padding:30px 24px; ${F}">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td align="center" style="border:2px solid #F7941D; border-radius:50px;">
+            <a href="${esc(L.campsPage)}" target="_blank" style="display:inline-block; padding:11px 26px; ${F} font-size:14px; font-weight:800; color:#FFFFFF; text-decoration:none;">See All Summer Camps</a>
+          </td>
+        </tr>
+      </table>
+      <div style="margin-top:16px; font-size:13px; font-weight:700;">
+        <a href="${esc(L.instagram)}" target="_blank" style="color:#F7941D; text-decoration:none;">Instagram</a>
+        &nbsp;&middot;&nbsp;
+        <a href="${esc(L.facebook)}" target="_blank" style="color:#F7941D; text-decoration:none;">Facebook</a>
+        &nbsp;&middot;&nbsp;
+        <a href="mailto:${esc(L.email)}" target="_blank" style="color:#F7941D; text-decoration:none;">Email us</a>
+      </div>
+      <div style="margin-top:12px; font-size:12px; color:#CFE3F2;">${esc(L.name)}</div>
+    </td>
+  </tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>
+`;
+}
+
+// ---------- Constant Contact check (runs on every preview) ----------
+function ccCheck(html) {
+  const count = (re) => (html.match(re) || []).length;
+  const checks = [
+    ["Exactly one DOCTYPE, html, head and body", ["<!DOCTYPE html>", /<html[\s>]/g, /<\/html>/g, /<head>/g, /<\/head>/g, /<body[\s>]/g, /<\/body>/g].every(t => count(typeof t === "string" ? new RegExp(t, "g") : t) === 1)],
+    ["Starts with <!DOCTYPE html> and ends with </html>", html.trimStart().startsWith("<!DOCTYPE html>") && html.trimEnd().endsWith("</html>")],
+    ["Plain <body> tag (no attributes)", /<body>/.test(html) && !/<body\s[^>]*>/.test(html)],
+    ["Every void tag self-closed (img, meta, link, br)", !/<(img|meta|link|br)\b(?:[^>"']|"[^"]*"|'[^']*')*[^/]>/i.test(html)],
+    ["Styles only in <head>", count(/<style/g) <= 1 && html.indexOf("<style") < html.indexOf("</head>")],
+    ["No script, form, iframe, video or svg", !/<(script|form|iframe|video|svg)\b/i.test(html)],
+    ["Every link and image is https", !/(href|src)="http:\/\//i.test(html) && !/href="#/.test(html)],
+    ["No bare & in the copy", !/&(?![a-z]+;|#\d+;)/i.test(html)],
+    ["No address or unsubscribe (Constant Contact adds them)", !/unsubscribe/i.test(html)],
+  ];
+  $("ccList").innerHTML = checks.map(([t, ok]) => `<li>${ok ? "✅" : "❌"} ${esc(t)}</li>`).join("");
+  return checks.every(c => c[1]);
+}
+
+// ---------- results ----------
+const optOut = "Reply STOP to opt out";
+const smsFull = (t) => `${t.trim()} ${$("ctaLink").value.trim()} ${optOut}`;
+const segInfo = (s) => { const n = s.length; const seg = n <= 160 ? 1 : Math.ceil(n / 153); return `${n} characters · ${seg} segment${seg > 1 ? "s" : ""}`; };
+
+function renderResults() {
+  const c = COPY, em = c.email || {};
+  show($("results"));
+  $("angleCard").innerHTML = `<h2><span class="step">✓</span>Angle: ${esc(c.angle || "")}</h2><div class="muted">${esc(c.angleWhy || "")}</div>` +
+    (c.flags || []).map(f => `<div class="flag">⚠️ ${esc(f)}</div>`).join("");
+  state.subjectIdx = em.recommended || 0;
+  $("subjects").innerHTML = (em.subjects || []).map((s, i) => `<div class="opt ${i === state.subjectIdx ? "sel" : ""}" data-i="${i}"><label style="margin:0"><input type="radio" name="subj" value="${i}" ${i === state.subjectIdx ? "checked" : ""}> ${esc(s)} ${i === (em.recommended || 0) ? '<span class="pill">recommended</span>' : ""}</label><div class="count">${s.length} characters</div></div>`).join("") +
+    `<label>Final subject line</label><input type="text" id="subjectEdit" value="${esc((em.subjects || [""])[state.subjectIdx])}">`;
+  document.querySelectorAll('input[name=subj]').forEach(r => r.onchange = () => {
+    state.subjectIdx = +r.value; $("subjectEdit").value = em.subjects[state.subjectIdx];
+    document.querySelectorAll("#subjects .opt").forEach(o => o.classList.toggle("sel", +o.dataset.i === state.subjectIdx)); refreshPreview();
+  });
+  $("preheader").value = em.preheader || ""; $("eyebrow").value = em.eyebrow || ""; $("headline").value = em.headline || "";
+  $("intro1").value = em.intro1 || ""; $("intro2").value = em.intro2 || ""; $("urgency").value = em.urgency || ""; $("ctaNote").value = em.ctaNote || "";
+  ["subjectEdit", "preheader", "eyebrow", "headline", "intro1", "intro2", "urgency", "ctaNote", "ctaLink", "img"].forEach(id => $(id).addEventListener("input", refreshPreview));
+  refreshPreview();
+
+  show($("smsCard"), !!c._sms); show($("dueSmsRow"), !!c._sms);
+  if (c._sms) {
+    const rec = c.sms.recommended || "A";
+    state.smsIdx = Math.max(0, c.sms.options.findIndex(o => o.label === rec));
+    $("smsOpts").innerHTML = c.sms.options.map((o, i) => `<div class="opt ${i === state.smsIdx ? "sel" : ""}" data-i="${i}">
+      <label style="margin:0"><input type="radio" name="sms" value="${i}" ${i === state.smsIdx ? "checked" : ""}> Option ${esc(o.label)} ${o.label === rec ? '<span class="pill">recommended</span>' : ""}</label>
+      <textarea id="sms${i}">${esc(o.text)}</textarea><div class="count" id="sms${i}c"></div></div>`).join("");
+    c.sms.options.forEach((o, i) => { const upd = () => $(`sms${i}c`).textContent = segInfo(smsFull($(`sms${i}`).value)); $(`sms${i}`).oninput = upd; upd(); });
+    document.querySelectorAll('input[name=sms]').forEach(r => r.onchange = () => { state.smsIdx = +r.value; document.querySelectorAll("#smsOpts .opt").forEach(o => o.classList.toggle("sel", +o.dataset.i === state.smsIdx)); });
+    $("lastCall").value = c.sms.lastCall || ""; const lu = () => $("lastCount").textContent = segInfo(smsFull($("lastCall").value)); $("lastCall").oninput = lu; lu();
+  }
+
+  $("parent").innerHTML = SEL.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join("");
+  // EMAIL due: the next Tue–Fri or Sun (never Mon/Sat), and inside the 5-day window from the newest EMAIL task.
+  let start = addDays(today0(), 1);
+  if (LAST_EMAIL) { const l = new Date(LAST_EMAIL), l0 = new Date(l.getFullYear(), l.getMonth(), l.getDate()); const s2 = addDays(l0, 3); if (s2 > start) start = s2; }
+  let d = start; while (d.getDay() === 1 || d.getDay() === 6) d = addDays(d, 1);
+  $("dueEmail").value = ymd(d); $("dueSms").value = ymd(addDays(d, 2));
+  let note = "";
+  if (LAST_EMAIL) { const l = new Date(LAST_EMAIL), by = addDays(new Date(l.getFullYear(), l.getMonth(), l.getDate()), 5); if (d > by) note = `Heads up: that's past the 5-day window (${usShort(by)}).`; }
+  $("dueNote").textContent = note;
+  $("pushOut").innerHTML = "";
+  $("results").scrollIntoView({ behavior: "smooth" });
+}
+function refreshPreview() { const h = buildEmail(); $("preview").srcdoc = h; ccCheck(h); }
+
+$("copyHtml").onclick = async () => { await navigator.clipboard.writeText(buildEmail()); $("copyHtml").textContent = "Copied ✓"; setTimeout(() => $("copyHtml").textContent = "Copy HTML", 1500); };
+$("dlHtml").onclick = () => {
+  const a = document.createElement("a"); const slug = ($("subjectEdit").value || "csk-email").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 50);
+  a.href = URL.createObjectURL(new Blob([buildEmail()], { type: "text/html" })); a.download = `csk-${$("loc").value}-${slug}.html`; a.click();
+};
+
+// ---------- push ----------
+$("push").onclick = async () => {
+  const html = buildEmail();
+  if (!ccCheck(html)) { $("pushOut").innerHTML = `<div class="err">The Constant Contact check has a ❌. Fix it before pushing.</div>`; return; }
+  const body = { loc: $("loc").value, parentId: $("parent").value, dueDates: { email: $("dueEmail").value }, email: { subject: $("subjectEdit").value.trim(), html } };
+  if (COPY._sms) { body.sms = { text: smsFull($(`sms${state.smsIdx}`).value) }; body.dueDates.sms = $("dueSms").value; }
+  $("push").disabled = true; $("pushStatus").textContent = "Pushing…"; $("pushOut").innerHTML = "";
+  try {
+    const j = await api("/api/csk/push", { method: "POST", body: JSON.stringify(body) });
+    $("pushOut").innerHTML = `<div class="${j.ok ? "ok" : "err"}">` + j.results.map(r => r.action === "failed" ? `✗ ${r.name}: ${esc(r.error)}` : `✓ <a href="${r.url}" target="_blank" rel="noopener">${r.name}</a> created`).join("<br>") +
+      ` <span class="muted">under <a href="${j.parent.url}" target="_blank" rel="noopener">${esc(j.parent.name)}</a></span></div>`;
+  } catch (e) { $("pushOut").innerHTML = `<div class="err">${esc(e.message)}</div>`; }
+  finally { $("push").disabled = false; $("pushStatus").textContent = ""; }
+};
+
+// ---------- boot ----------
+loadConfig().then((c) => {
+  if (!c.ready.passcode) { show($("gate"), false); show($("app")); return; }
+  if (PASS) { $("pass").value = PASS; enter(); }
+});
+})();
+</script>
+</body>
+</html>
